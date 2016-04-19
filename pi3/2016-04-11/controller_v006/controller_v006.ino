@@ -47,10 +47,10 @@ PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // DIRECT or REVERSE
 #else
 // uncontrolled mode
 // Cycle the wipers around at 20% increments, changing every 10 seconds
-long timeoutInterval = 10000; //60000; // this is in milliseconds
+long timeoutInterval = 30000; //60000; // this is in milliseconds
 long previousMillis = 0;
 float counter = 0.0;
-int setVals[] = {100}; //{40,50,60,70,80,90,100};  // the set of applicable outputs
+int setVals[] = {40,50,60,70,80,90,100};  // the set of applicable outputs
 #endif
 
 // SETUP MCP4261 
@@ -170,19 +170,18 @@ float temperatureCelcius(int address) {
 #if ! PID_CONTROL
 void timeout()
 {
-  if(counter > 100.0)
-    counter = 0.0;
+  //if(counter > 100.0)
+  //  counter = 0.0;
 
   // set the wiper position
   // pot0 uses pins 8,9,10; pot1 uses pins 5,6,7
   // digitalPot.setResistance(pot#, 0-100);
   //digitalPot.setResistance(1, 100-counter); // start high and go low
   //digitalPot.setResistance(1, counter); // start low and go high
-  digitalPot.setResistance(1, 100); // fixed value
-  //int setVal = setVals[random(0,sizeof(setVals)/sizeof(int))];
-  //digitalPot.setResistance(1,setVal); // value from selection
-  
-  counter += 10.0; // change in increments of 10
+  //digitalPot.setResistance(1, 100); // fixed value
+  int setVal = setVals[random(0,sizeof(setVals)/sizeof(int))];
+  digitalPot.setResistance(1,setVal); // value from selection
+  //counter += 10.0; // change in increments of 10
 }
 #endif
 
