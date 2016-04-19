@@ -1,2 +1,7 @@
 how-to for usbtmc-python
 http://scruss.com/blog/2013/12/15/my-raspberry-pi-talks-to-my-oscilloscope/
+
+sudo nano /etc/udev/rules.d/usbtmc.rules
+Bus 001 Device 011: ID 1ab1:04ce Rigol Technologies 
+6833
+1230

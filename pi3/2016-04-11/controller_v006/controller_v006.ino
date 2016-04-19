@@ -26,7 +26,7 @@
  * print: thermal1_degC,thermal2_degC,A3
 */
 
-#define PID_CONTROL falsec
+#define PID_CONTROL false
 
 #if PID_CONTROL
 // controlled mode
