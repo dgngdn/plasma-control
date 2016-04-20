@@ -26,10 +26,10 @@
  * print: thermal1_degC,thermal2_degC,A3
 */
 
-#define PID_CONTROL true
+#define PID_CONTROL false
 
 // Set the cycle time
-long timeoutInterval = 5000; //300000; // this is in milliseconds
+long timeoutInterval = 300000; // this is in milliseconds
 long previousMillis = 0;
 int counter = 1;
 
@@ -48,11 +48,11 @@ double Ki = 1.0; // 1.0, integral control
 double Kd = 0.0; // 0.0, derivative control
 // Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // DIRECT or REVERSE
-int setVals[] = {20,35,20,35,25,35,30,35,20,25,20,30,20,35,20};  // applicable values, setpoint
+int setVals[] = {20,35,20,35,25,35,30,35,20,25,20,30,20,35};  // applicable values, setpoint
 
 #else
 // uncontrolled mode
-int setVals[] = {0,100,0,100,50,100,60,100,70,100,80,100,90,100,50,0,60,0,70,0,80,0,90,0,100,0};  // applicable values, applied voltage
+int setVals[] = {0,100,0,100,50,100,60,100,70,100,80,100,90,100,50,0,60,0,70,0,80,0,90,0,100};  // applicable values, applied voltage
 #endif
 
 // SETUP MCP4261 
@@ -182,12 +182,14 @@ void timeout()
   //digitalPot.setResistance(1,setVal); // value from selection
   //counter += 10.0; // change in increments of 10
   
-  if( counter >= sizeof(setVals) / sizeof(int) )
+  if( counter >= sizeof(setVals) / sizeof(int) ) {
     counter = 0;
+  }
+  
 #if PID_CONTROL
   Setpoint = setVals[ counter ];
 #else
-  digitalPot.setResistance( 1, setVals[counter] )
+  digitalPot.setResistance( 1, setVals[counter] );
 #endif
   counter += 1;
   
