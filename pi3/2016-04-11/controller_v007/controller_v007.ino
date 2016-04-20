@@ -26,10 +26,10 @@
  * print: thermal1_degC,thermal2_degC,A3
 */
 
-#define PID_CONTROL false
+#define PID_CONTROL true
 
 // Set the cycle time
-long timeoutInterval = 300000; // this is in milliseconds
+long timeoutInterval = 10000; //300000; // this is in milliseconds
 long previousMillis = 0;
 int counter = 1;
 
@@ -48,7 +48,8 @@ double Ki = 1.0; // 1.0, integral control
 double Kd = 0.0; // 0.0, derivative control
 // Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // DIRECT or REVERSE
-int setVals[] = {20,35,20,35,25,35,30,35,20,25,20,30,20,35};  // applicable values, setpoint
+//int setVals[] = {20,35,20,35,25,35,30,35,20,25,20,30,20,35};  // applicable values, setpoint
+int setVals[] = {20,70,20,70,30,70,40,70,50,70,60,70,20,30,20,40,20,50,20,60,20,70};
 
 #else
 // uncontrolled mode
@@ -179,7 +180,7 @@ void timeout()
   //digitalPot.setResistance(1, counter); // start low and go high
   //digitalPot.setResistance(1, 100); // fixed value
   //int setVal = setVals[random(0,sizeof(setVals)/sizeof(int))];
-  //digitalPot.setResistance(1,setVal); // value from selection
+  //digitalPot.setResistance(1,setVal); // value from selection                                                                   
   //counter += 10.0; // change in increments of 10
   
   if( counter >= sizeof(setVals) / sizeof(int) ) {
@@ -210,15 +211,15 @@ void loop()
     // digitalPot.setResistance(pot#, 0-100);
     digitalPot.setResistance(1, Output); // this is what the PID is controlling
   }
-#else
-  // uncontrolled mode
+#endif
+
+  // controlled AND uncontrolled mode
   // timeout loop for adjusting the potentiometer setting
   if (  millis() - previousMillis > timeoutInterval )
   {
     timeout();
     previousMillis = millis();
   }
-#endif
 
   // Read the input from the potentiometer wiper at A3
   int sensorValue = analogRead(A3);
@@ -228,6 +229,12 @@ void loop()
   Serial.print(celcius2);
   Serial.print(",");
   Serial.print(sensorValue);
+  //Serial.print(",");
+  //Serial.print(Input);
+  //Serial.print(",");
+  //Serial.print(Setpoint);
+  //Serial.print(",");
+  //Serial.print(Output);
   Serial.println();
 
   delay(100);                         // Wait before lopping.
