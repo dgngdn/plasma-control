@@ -6,7 +6,7 @@ import datetime
 import time
 
 device = os.open("/dev/usbtmc0",os.O_RDWR)
-wait = 30
+wait = 1
 channels = 3
 
 while True:
