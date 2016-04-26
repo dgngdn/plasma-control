@@ -14,5 +14,30 @@ cat /dev/ttyACM0 > file.dat
 
 == TIMESTAMPING FILES
 
+get the date in ISO8601 format, but with underscore instead of "T0" between date and time:
 date --iso-8601='s' | cut -d '-' -f 1-3 | sed 's/T0/_/'
 
+combine with command substitution to generate a timestamped datafile:
+./seabreeze-util --get-spectrum --integration-time-us 15000 > $(date --iso-8601='s' | cut -d '-' -f 1-3 | sed 's/T0/_/')
+./seabreeze-util --get-spectrum --integration-time-us 15000 > ~/repos/bcduino/data/2016-04-26/spectrum_$(date --iso-8601='s' | cut -d '-' -f 1-3 | sed 's/T0/_/')
+
+== TAKING SPECTRA
+
+you must export the proper library variables first:
+export LD_LIBRARY_PATH="$PWD/lib"
+
+== LOOPS
+
+while true; do 
+	DATE=`date +%Y%m%d`
+	HOUR=`date +%H`
+	mkdir $WEBDIR/"$DATE"
+	
+	while [ $HOUR -ne "00" ]; do 
+		DESTDIR=$WEBDIR/"$DATE"/"$HOUR"
+		mkdir "$DESTDIR"
+		mv $PICDIR/*.jpg "$DESTDIR"/
+		sleep 3600
+		HOUR=`date +%H`
+	done
+done
