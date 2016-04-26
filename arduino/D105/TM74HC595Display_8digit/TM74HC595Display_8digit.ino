@@ -69,12 +69,12 @@ void loop() {
   disp.digit4showZero(i, 50);               //send counter 0-100 with delay 50 cicles with zero
   }
 */
-  for(int i = 0; i<=1050; i++){
-  disp.digit4(i, 50, true);               //send counter 0-9999 with delay 50 cicles and hide zero
-  }
+  //for(int i = 0; i<=1050; i++){
+  //disp.digit4(i, 50, true);               //send counter 0-1050 to 4 LED digits with 50-cycle delay and hide zero
+  //}
 
   for(int i = 0; i<=99999999; i++){
-  disp.digit8(i, 25, true);               //send counter 0-9999 with delay 50 cicles and hide zero
+  disp.digit8(i, 10, true);               //send counter 0-9999999 to 8 LED digits with 10-cycle delay and hide zero
   }
   
 }

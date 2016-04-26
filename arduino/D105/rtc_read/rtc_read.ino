@@ -3,29 +3,47 @@
 #include <DS1307RTC.h>
 
 void setup() {
-  Serial.begin(9600);
-  while (!Serial) ; // wait for serial
-  delay(200);
-  Serial.println("DS1307RTC Read Test");
-  Serial.println("-------------------");
+  Serial.begin(1000000); // 9600,57600,115200
+  //while (!Serial) ; // wait for serial
+  //delay(200);
+  //Serial.println("DS1307RTC Read Test");
+  //Serial.println("-------------------");
 }
 
 void loop() {
   tmElements_t tm;
 
   if (RTC.read(tm)) {
-    Serial.print("Ok, Time = ");
-    print2digits(tm.Hour);
-    Serial.write(':');
-    print2digits(tm.Minute);
-    Serial.write(':');
-    print2digits(tm.Second);
-    Serial.print(", Date (D/M/Y) = ");
-    Serial.print(tm.Day);
-    Serial.write('/');
-    Serial.print(tm.Month);
-    Serial.write('/');
+    int starttime = micros();
+    RTC.read(tm);
     Serial.print(tmYearToCalendar(tm.Year));
+    Serial.print('-');
+    print2digits(tm.Month);
+    Serial.print('-');
+    print2digits(tm.Day);
+    Serial.print('_');
+    print2digits(tm.Hour);
+    Serial.print(':');
+    print2digits(tm.Minute);
+    Serial.print(':');
+    print2digits(tm.Second);
+    int endtime = micros();
+
+
+    //Serial.print("Ok, Time = ");
+    //print2digits(tm.Hour);
+    //Serial.write(':');
+    //print2digits(tm.Minute);
+    //Serial.write(':');
+    //print2digits(tm.Second);
+    //Serial.print(", Date (D/M/Y) = ");
+    //Serial.print(tm.Day);
+    //Serial.write('/');
+    //Serial.print(tm.Month);
+    //Serial.write('/');
+    //Serial.print(tmYearToCalendar(tm.Year));
+    Serial.print('_');
+    Serial.print(endtime-starttime);    
     Serial.println();
   } else {
     if (RTC.chipPresent()) {
@@ -38,7 +56,7 @@ void loop() {
     }
     delay(9000);
   }
-  delay(1000);
+  //delay(1000);
 }
 
 void print2digits(int number) {

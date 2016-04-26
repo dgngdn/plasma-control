@@ -9,7 +9,7 @@ int RCLK = 3;
 int DIO = 2;
 
 TM74HC595Display disp(SCLK, RCLK, DIO);
-unsigned char LED_0F[29];
+unsigned char LED_0F[30];
 
 void setup() {
   LED_0F[0] = 0xC0; //0
@@ -40,7 +40,8 @@ void setup() {
   LED_0F[25] = 0x92; //S
   LED_0F[26] = 0xC1; //U
   LED_0F[27] = 0x91; //Y
-  LED_0F[28] = 0xFE; //hight -
+  LED_0F[28] = 0xFE; //high -
+  LED_0F[29] = 0x80; //.
   
   Serial.begin(9600);
   while (!Serial) ; // wait for serial
@@ -90,9 +91,38 @@ void loop() {
   tmElements_t tm;
 
   if (RTC.read(tm)) {
-    long timedisp = tm.Hour*10000L + tm.Minute*100L + tm.Second*1L;
-    Serial.print(timedisp);
-    disp.digit8(timedisp,10,false);
+    
+    // WRITE THE TIME
+    //long timedisp = tm.Hour*10000L + tm.Minute*100L + tm.Second*1L;
+    //Serial.print(timedisp);
+    //disp.time8(timedisp);
+    
+    // WRITE THE SECONDS LEFT THIS WEEK (EOW = Sunday Midnight)
+    //long secsremainingweek = SECS_PER_WEEK - elapsedSecsThisWeek(makeTime(tm));
+    long secsremainingweek = (nextSunday(makeTime(tm)) + SECS_PER_DAY) - makeTime(tm);
+    Serial.print(secsremainingweek);
+    disp.digit8(secsremainingweek,10,true);
+    
+    // INTERROGATE VALUE:DISPLAY RELATIONSHIP
+    //for(int val = 0; val<=255; val++){
+    //  disp.send(val,0b11111111);
+    //  delay(2000);
+    //}
+    
+    // WRITE A SINGLE VALUE TO A SET OF DIGITS
+    //disp.send(0b10000000,0b11111111);
+    //disp.send(0b01111111,0b11111111);
+
+    
+    // BREAK APART THE WRITE OPERATION
+    //disp.send(0b11000000);
+    //disp.send(0b01010101);
+    //disp.send(0b10101010);
+    //digitalWrite(RCLK, LOW);
+    //digitalWrite(RCLK, HIGH);
+    
+    //disp.send(LED_0F[28],0b11001100);
+    
  /*
     Serial.print("Ok, Time = ");
     print2digits(tm.Hour);
