@@ -1,11 +1,10 @@
 /**
- * control_v009, Brandon Curtis
+ * control_v005, Brandon Curtis
  * this code is public domain
- * status: TESTED; WORKS AS DESCRIBED
+ * status: WORKS AS DESCRIBED
  * hardware requirements:
  * 2x IR thermal sensors (Melexis LX90614), I2C
  * 1x digital potentiometer (Microchip MCP4261), SPI
- * 1x real-time clock, DS1307 or DS3121 -compatible
  * Thermal sensors must have unique addresses on the i2c bus
  * (this is accomplished with another program)
  * Temperature (degC) is read from both sensors.
@@ -25,45 +24,22 @@
  * 
  * potentiometer wiper voltage read at pin A3
  * print: thermal1_degC,thermal2_degC,A3
- * 
- * This software is based on libraries licensed with the GNU
-   Lesser General Public License (v2.1+).
-
-  This work is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License as published by the Free Software Foundation; either
-  version 2.1 of the License, or (at your option) any later version.
-
-  This library is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- */
+*/
 
 #define PID_CONTROL false
 
 // Set the cycle time
-long timeoutInterval = 100000; //300000; // this is in milliseconds
+long timeoutInterval = 10000; //300000; // this is in milliseconds
 long previousMillis = 0;
 int counter = 1;
 
-
-/**
- * /////////////////
- * /// SETUP PID ///
- * /////////////////
- * Configure the process-integral-derivative controller
- * Arduino library written by Brett Beauregard
- * http://playground.arduino.cc/Code/PIDLibary
- * https://github.com/br3ttb/Arduino-PID-Library/
- * http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
- */
-
 #if PID_CONTROL
+// controlled mode
+// SETUP PID
+// process-integral-derivative controller for Arduino
+// http://playground.arduino.cc/Code/PIDLibary
+// https://github.com/br3ttb/Arduino-PID-Library/
+// http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
 #include <PID_v1.h>
 // Define Variables we'll be connecting the controller to
 double Setpoint, Input, Output;
@@ -72,25 +48,18 @@ double Ki = 1.0; // 1.0, integral control
 double Kd = 0.0; // 0.0, derivative control
 // Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // DIRECT or REVERSE
-// controlled mode, setpoints
+//int setVals[] = {20,35,20,35,25,35,30,35,20,25,20,30,20,35};  // applicable values, setpoint
 int setVals[] = {20,70,20,70,30,70,40,70,50,70,60,70,20,30,20,40,20,50,20,60,20,70};
 
 #else
-// uncontrolled mode, applied voltage
-//int setVals[] = {0,100,0,100,50,100,60,100,70,100,80,100,90,100,50,0,60,0,70,0,80,0,90,0,100};  // step analysis
-int setVals[] = {0,100,95,90,85,80,75,70,65,60,55,50,45,40,35,40,45,50,55,60,65,70,75,80,85,90,95,100};  // power
+// uncontrolled mode
+int setVals[] = {0,100,0,100,50,100,60,100,70,100,80,100,90,100,50,0,60,0,70,0,80,0,90,0,100};  // applicable values, applied voltage
 #endif
 
-
-/**
- * /////////////////////
- * /// SETUP MCP4261 ///
- * /////////////////////
- * Configured the Microchip digital potentiometers
- * Uses the Spi library by Cam Thompson, originally part of FPU library (micromegacorp.com)
- * from http://arduino.cc/playground/Code/Fpu or http://www.arduino.cc/playground/Code/Spi
- * Including SPI.h vv below initializea the MOSI, MISO, and SPI_CLK pins as per ATMEGA 328P
- */
+// SETUP MCP4261 
+// The Spi library by Cam Thompson. It was originally part of FPU library (micromegacorp.com)
+// Available from http://arduino.cc/playground/Code/Fpu or http://www.arduino.cc/playground/Code/Spi
+// Including SPI.h vv below initializea the MOSI, MISO, and SPI_CLK pins as per ATMEGA 328P
 #include <SPI.h>
 
 // McpDigitalPot library available from https://github.com/teabot/McpDigitalPot
@@ -98,9 +67,9 @@ int setVals[] = {0,100,95,90,85,80,75,70,65,60,55,50,45,40,35,40,45,50,55,60,65,
 #include <McpDigitalPot.h>
 
 // Wire up the SPI Interface common lines:
-// #define SPI_CLOCK            13 //arduino <-> SPI Slave Clock Input   -> SCK (Pin 02 on McpDigitalPot DIP)
-// #define SPI_MOSI             11 //arduino <-> SPI Master Out Slave In -> SDI (Pin 03 on McpDigitalPot DIP)
-// #define SPI_MISO             12 //arduino <-> SPI Master In Slave Out -> SDO (Pin 13 on McpDigitalPot DIP)
+// #define SPI_CLOCK            13 //arduino   <->   SPI Slave Clock Input     -> SCK (Pin 02 on McpDigitalPot DIP)
+// #define SPI_MOSI             11 //arduino   <->   SPI Master Out Slave In   -> SDI (Pin 03 on McpDigitalPot DIP)
+// #define SPI_MISO             12 //arduino   <->   SPI Master In Slave Out   -> SDO (Pin 13 on McpDigitalPot DIP)
 
 // Then choose any other free pin as the Slave Select (default pin 10)
 #define MCP_DIGITAL_POT_SLAVE_SELECT_PIN 10 //arduino   <->   Chip Select      -> CS  (Pin 01 on McpDigitalPot DIP)
@@ -113,31 +82,26 @@ float rAB_ohms = 10000.00; // 10k Ohm
 // Instantiate McpDigitalPot object, with default rW (=117.5 ohm, its typical resistance)
 McpDigitalPot digitalPot = McpDigitalPot( MCP_DIGITAL_POT_SLAVE_SELECT_PIN, rAB_ohms );
 
-
 /**
- * //////////////////////
- * /// SETUP MLX90614 ///
- * //////////////////////
- * Configure the Melexis IR thermal sensors
- * based on "two infrared thermometers", by Jaime Patarroyo
- * based on "Is it hot? Arduino + MLX90614 IR Thermometer" by bildr.blog
- * i2c bus device address: 0x5A
- * bus addresses modified with software based on 'remap_mlx90614' by Chris Ramsay
- * http://www.chrisramsay.co.uk/posts/2014/09/arduino-and-multiple-mlx90614-sensors/
- *
- * Returns the temperature in Celcius from two MLX90614 Infrared Thermometers,
- * connected to the TWI/I²C pins (on the Wiring v1 board 0 (SCL) and 1 (SDA)
- * and on Wiring S board 8 (SCL) and 9 (SDA)).
+ * Two Infrared Thermometers MLX906114
+ * by Jaime Patarroyo
+ * based on 'Is it hot? Arduino + MLX90614 IR Thermometer' by bildr.blog
+ * 
+ * Returns the temperature in Celcius and Fahrenheit from two MLX90614 
+ * Infrared Thermometers, connected to the TWI/I²C pins (on the Wiring v1 
+ * board 0 (SCL) and 1 (SDA) and on Wiring S board 8 (SCL) and 9 (SDA)).
  */
-
+ 
+// SETUP MLX90614
+// Configuration stuff for the MLX IR thermal sensors
 #include <i2cmaster.h>
 
-int device1Address = 0x5A<<1;   // 0x5A is the assigned address for I²C 
+int device1Address = 0x5A<<1;   // 0x50 is the assigned address for I²C 
                                 // communication for sensor 1.
                                 // Shift the address 1 bit right, the 
                                 // I²Cmaster library only needs the 7 most 
                                 // significant bits for the address.
-int device2Address = 0x5B<<1;   // 0x5B is the assigned address for I²C 
+int device2Address = 0x5B<<1;   // 0x55 is the assigned address for I²C 
                                 // communication for sensor 2.
                                 // Shift the address 1 bit right, the 
                                 // I²Cmaster library only needs the 7 most 
@@ -146,32 +110,9 @@ int device2Address = 0x5B<<1;   // 0x5B is the assigned address for I²C
 float celcius1 = 0;             // Variable for degC, sensor 1
 float celcius2 = 0;             // Variable for degC, sensor 2
 
-
-/**
- * /////////////////
- * /// SETUP RTC ///
- * /////////////////
- * Configure the temperature-compensated realtime clock
- * DS1307RTC library v1.4, by Michael Margolis; maintained by Paul Stoffregen
- * utilizes the Arduino "Time" library
- * http://playground.arduino.cc/code/time
- * This is GPL software; license details in the header
- * i2c bus device address: 0x68
- */
-
-#include <Wire.h>
-#include <TimeLib.h>
-#include <DS1307RTC.h>
-
-/**
- * //////////////////////
- * /// SETUP FUNCTION ///
- * //////////////////////
- */
-
 void setup()
 {
-  Serial.begin(57600); // allowed: 4800,9600,14400,19200,28800,57600,115200,0.5M,1.0M,2.0M
+  Serial.begin(9600);           // Start serial communication at 9600bps.
   
   i2c_init();                               // Initialise the i2c bus.
   PORTC = (1 << PORTC4) | (1 << PORTC5);    // Enable pullups.
@@ -194,12 +135,6 @@ void setup()
   myPID.SetMode(AUTOMATIC);             // AUTOMATIC = on
 #endif
 }
-
-/**
- * ////////////////////////
- * /// GET TEMPERATURES ///
- * //////////////////////
- */
 
 float temperatureCelcius(int address) {
   int dev = address;
@@ -235,25 +170,6 @@ float temperatureCelcius(int address) {
   return celcius;
 }
 
-/**
- * ///////////////////////////////////
- * /// ZERO-PAD TIMESTAMP ELEMENTS ///
- * ///////////////////////////////////
- */
-
-void print2digits(int number) {
-  if (number >= 0 && number < 10) {
-    Serial.write('0');
-  }
-  Serial.print(number);
-}
-
-/**
- * //////////////////////////////////
- * /// TIME-TRIGGERED ADJUSTMENTS ///
- * ////////////////////////////////
- */
-
 void timeout()
 {
   // set the wiper position
@@ -277,21 +193,18 @@ void timeout()
   digitalPot.setResistance( 1, setVals[counter] );
 #endif
   counter += 1;
+  
 }
-
-/**
- * /////////////////
- * /// MAIN LOOP ///
- * /////////////////
- */
 
 void loop()
 {
   celcius1 = temperatureCelcius(device1Address);// Reads data from MLX90614
   celcius2 = temperatureCelcius(device2Address);// with the given address,
-                                                // converts to °C and stores
+                                                // transforms it into
+                                                // temperature in Celcius and
+                                                // stores it in celcius1/celcius2
 #if PID_CONTROL
-  // traversed only in controlled mode
+  // controlled mode
   Input = celcius2; //celcius1 + celcius2;
   
   if ( myPID.Compute() ) {
@@ -300,8 +213,8 @@ void loop()
   }
 #endif
 
-  // traversed in controlled AND uncontrolled mode
-  // timeout loop for time-triggered adjustments
+  // controlled AND uncontrolled mode
+  // timeout loop for adjusting the potentiometer setting
   if (  millis() - previousMillis > timeoutInterval )
   {
     timeout();
@@ -310,28 +223,10 @@ void loop()
 
   // Read the input from the potentiometer wiper at A3
   int sensorValue = analogRead(A3);
-
-  // TIMESTAMP AND PRINT over the serial interface  
-  tmElements_t tm;
-  if (RTC.read(tm)) {
-    //int starttime = micros(); //START TIMING
-    Serial.print(tmYearToCalendar(tm.Year));
-    Serial.print('-');
-    print2digits(tm.Month);
-    Serial.print('-');
-    print2digits(tm.Day);
-    Serial.print('_');
-    print2digits(tm.Hour);
-    Serial.print(':');
-    print2digits(tm.Minute);
-    Serial.print(':');
-    print2digits(tm.Second);
-    Serial.print(",");
-    //int endtime = micros(); //END TIMING
-  }
-  Serial.print(celcius1);
+  
+  Serial.print(celcius1); // red - surface
   Serial.print(",");
-  Serial.print(celcius2);
+  Serial.print(celcius2); // blue - tube
   Serial.print(",");
   Serial.print(sensorValue);
 #if PID_CONTROL
@@ -344,5 +239,5 @@ void loop()
 #endif
   Serial.println();
 
-  //delay(100);                         // pause before looping
+  //delay(100);                         // Wait before lopping.
 }

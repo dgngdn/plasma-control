@@ -1,0 +1,13 @@
+=== SERIAL TO FILE
+
+check status of serial port:
+stty -F /dev/ttyACM0
+
+set serial port baud rate:
+stty -F /dev/ttyACM0 9600 raw
+
+serial port to stdout:
+cat /dev/ttyACM0
+
+serial port to file:
+cat /dev/ttyACM0 > file.dat
