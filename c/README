@@ -15,3 +15,22 @@ int main ()
 
   return 0;
 }
+
+#include <ctime>
+#include <iostream>
+
+int main() {
+    time_t now;
+    time(&now);
+    char buf[sizeof "2011-10-08T07:07:09Z"];
+    strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
+    // this will work too, if your compiler doesn't support %F or %T:
+    //strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+    std::cout << buf << "\n";
+}
+
+In Qt, that would be:
+
+QDateTime dt = QDateTime::currentDateTime();
+dt.setTimeSpec(Qt::UTC);  // or Qt::OffsetFromUTC for offset from UTC
+qDebug() << QDateTime::currentDateTime().toString(Qt::ISODate);
