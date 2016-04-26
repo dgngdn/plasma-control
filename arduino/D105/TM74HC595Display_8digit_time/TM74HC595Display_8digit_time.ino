@@ -99,8 +99,8 @@ void loop() {
     
     // WRITE THE SECONDS LEFT THIS WEEK (EOW = Sunday Midnight)
     //long secsremainingweek = SECS_PER_WEEK - elapsedSecsThisWeek(makeTime(tm));
-    long secsremainingweek = (nextSunday(makeTime(tm)) + SECS_PER_DAY) - makeTime(tm);
-    Serial.print(secsremainingweek);
+    long secsremainingweek = ((nextSunday(makeTime(tm)) + SECS_PER_DAY) - makeTime(tm)) % SECS_PER_WEEK;
+    Serial.print(secsremainingweek); // for a week ending on Sunday
     disp.digit8(secsremainingweek,10,true);
     
     // INTERROGATE VALUE:DISPLAY RELATIONSHIP
@@ -110,9 +110,10 @@ void loop() {
     //}
     
     // WRITE A SINGLE VALUE TO A SET OF DIGITS
-    //disp.send(0b10000000,0b11111111);
-    //disp.send(0b01111111,0b11111111);
-
+    //disp.send(0b10000000,0b00001111);
+    //delay(100);
+    //disp.send(0b01111111,0b11110000);
+    //delay(100);
     
     // BREAK APART THE WRITE OPERATION
     //disp.send(0b11000000);

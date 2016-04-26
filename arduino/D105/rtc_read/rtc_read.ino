@@ -3,7 +3,8 @@
 #include <DS1307RTC.h>
 
 void setup() {
-  Serial.begin(1000000); // 9600,57600,115200
+  Serial.begin(9600);
+  // opt: 9600,19200,38400,57600,115200,460800,230400,500000,1000000,2000000
   //while (!Serial) ; // wait for serial
   //delay(200);
   //Serial.println("DS1307RTC Read Test");
