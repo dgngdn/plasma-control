@@ -44,8 +44,8 @@ while True:
     data.append([(measured - yorig - yref) * yincr for measured in cleandata])
     print(str(channel) + " appended!")
   
-  for channel in range(0,channels+1):
-    print(data[channel][:5])
+  #for channel in range(0,channels+1): #debug
+  #  print(data[channel][:5]) #debug
   
   # for saving each channel to a separate csv file
   #for i in range(0,len(data)):
