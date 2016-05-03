@@ -47,7 +47,7 @@
 #define PID_CONTROL false
 
 // Set the cycle time
-long timeoutInterval = 100000; //300000; // this is in milliseconds
+long timeoutInterval = 300000; //300000; // this is in milliseconds
 long previousMillis = 0;
 int counter = 1;
 
