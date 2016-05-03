@@ -250,6 +250,16 @@ void print2digits(int number) {
   Serial.print(number);
 }
 
+void print3digits(int number) {
+  if (number >= 0 && number < 100) {
+    Serial.write('0');
+  }
+  if (number >= 0 && number < 10) {
+    Serial.write('0');
+  }
+  Serial.print(number);
+}
+
 /**
  * //////////////////////////////////
  * /// TIME-TRIGGERED ADJUSTMENTS ///
@@ -328,6 +338,8 @@ void loop()
     print2digits(tm.Minute);
     Serial.print(':');
     print2digits(tm.Second);
+    Serial.print('.');
+    print3digits(millis()%1000);
     Serial.print(",");
     //int endtime = micros(); //END TIMING
   }
