@@ -38,11 +38,11 @@ while True:
         xdata.append(x)
         x = x + xincr
       data.append(xdata)
-      print("xdata appended!")
+      #print("xdata appended!")
 
     ### volts = (data[] - yorig - yref) * yincr
     data.append([(measured - yorig - yref) * yincr for measured in cleandata])
-    print(str(channel) + " appended!")
+    #print(str(channel) + " appended!")
   
   #for channel in range(0,channels+1): #debug
   #  print(data[channel][:5]) #debug
