@@ -18,7 +18,7 @@
  * PID output: potentiometer wiper position
  * endif
  * 
- * if PID_CONTROL is false
+ * if PID_CONTROL is falselhost
  * Digital potentiometer is stepped through its range
  * 20% steps, 10 seconds per step
  * endif
@@ -47,7 +47,7 @@
 #define PID_CONTROL false
 
 // Set the cycle time
-long timeoutInterval = 300000; //300000; // this is in milliseconds
+long timeoutInterval = 100000; //300000; // this is in milliseconds
 long previousMillis = 0;
 int counter = 1;
 
