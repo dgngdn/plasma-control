@@ -44,7 +44,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#define PID_CONTROL false
+#define PID_CONTROL true
 
 // Set the cycle time
 long timeoutInterval = 100000; //300000; // this is in milliseconds
@@ -73,12 +73,13 @@ double Kd = 0.0; // 0.0, derivative control
 // Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // DIRECT or REVERSE
 // controlled mode, setpoints
-int setVals[] = {20,70,20,70,30,70,40,70,50,70,60,70,20,30,20,40,20,50,20,60,20,70};
+//int setVals[] = {20,70,20,70,30,70,40,70,50,70,60,70,20,30,20,40,20,50,20,60,20,70};
+int setVals[] = {40};
 
 #else
 // uncontrolled mode, applied voltage
 //int setVals[] = {0,100,0,100,50,100,60,100,70,100,80,100,90,100,50,0,60,0,70,0,80,0,90,0,100};  // step analysis
-int setVals[] = {0,0,100,95,90,85,80,75,70,65,60,55,50,45,40,35,40,45,50,55,60,65,70,75,80,85,90,95,100};  // power
+/int setVals[] = {0,0,100,95,90,85,80,75,70,65,60,55,50,45,40,35,40,45,50,55,60,65,70,75,80,85,90,95,100};  // power
 #endif
 
 
