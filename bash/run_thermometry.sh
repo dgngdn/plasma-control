@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function gettemp {
-	stty -F /dev/arduino 57600 raw && sleep 1 && cat /dev/arduino >> temperaturehistory
+	stty -F /dev/arduino 57600 raw && sleep 1 && cat /dev/arduino >> "$(pwd)/../in/temperature/temperaturehistory"
 	# still need to test this version for buffering problems...
 	#unbuffer cat /dev/arduino | awk '{ "date +%Y-%m-%d_%T.%3N" | getline timestamp; close ("date +%Y-%m-%d_%T.%3N"); print timestamp,","$0; fflush(); }' >> temperaturehistory
 

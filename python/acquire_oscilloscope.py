@@ -8,10 +8,12 @@ import time
 device = os.open("/dev/usbtmc0",os.O_RDWR)
 wait = 1
 channels = 3
+current_directory = os.path.dirname(__file__)
+save_directory = os.path.join(current_directory,os.pardir,'in','oscilloscope')
 
 while True:
   data = []
-  fbase = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+  fname = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
   
   try:  
     for channel in range(1,channels+1):
@@ -47,12 +49,12 @@ while True:
     #  print(data[channel][:5]) #debug
   
     ### for saving all channels to the same csv file
-    fname =  fbase
+
     dataset = []
     for point in range(0,len(data[0])):
       dataset.append([data[channel][point] for channel in range(0,channels+1)])
   
-    np.savetxt(fname,dataset,delimiter=',')
+    np.savetxt(os.path.join(save_directory,fname),dataset,delimiter=',')
   
     time.sleep(wait)
   except: time.sleep(wait);
