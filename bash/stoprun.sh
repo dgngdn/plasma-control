@@ -5,3 +5,4 @@ if [ "$ERROR" = "" ]; then
     echo "Processes successfully killed!"
 else
     echo "$ERROR"
+fi
