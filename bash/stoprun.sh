@@ -1,8 +1,10 @@
 #!/bin/bash
 
-ERROR=$(killall "thermograph" "spectra.sh" "oscilloscope.sh" "python scope.py" "temperature.sh" "cat" 2>&1)
-if [ "$ERROR" = "" ]; then
-    echo "Processes successfully killed!"
-else
-    echo "$ERROR"
-fi
+for PROCESS in {"run_thermography","run_spectroscopy.sh","run_oscilloscope.sh","python acquire_oscilloscope.py","run_thermometry.sh","cat /dev/arduino"}; do
+    pkill -f "$PROCESS"
+    if [ $? = 0 ]; then
+        echo "$PROCESS killed successfully"
+    else
+	echo "$PROCESS not found"
+    fi
+done

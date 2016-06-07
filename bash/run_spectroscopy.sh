@@ -13,7 +13,8 @@ function gettimestamp {
 }
 
 while true; do
-    getspectrum > "$(pwd)/../in/spectra/$(gettimestamp)"
+    getspectrum > "$(gettimestamp)"
+    #getspectrum > "$(pwd)/../in/spectra/$(gettimestamp)"
     sleep 1
 done
 
