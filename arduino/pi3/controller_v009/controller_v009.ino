@@ -14,13 +14,13 @@
  * if PID_CONTROL is true
  * Digital potentiometer is PID controlled
  * PID setpoint: 60C
- * PID inputs: _sum_ of the thermal readings
+ * PID inputs: non-contact thermal readings
  * PID output: potentiometer wiper position
  * endif
  * 
- * if PID_CONTROL is falselhost
+ * if PID_CONTROL is false
  * Digital potentiometer is stepped through its range
- * 20% steps, 10 seconds per step
+ * e.g. 20% steps, 10 seconds per step
  * endif
  * 
  * potentiometer wiper voltage read at pin A3
@@ -99,18 +99,20 @@ int setVals[] = {40};
 #include <McpDigitalPot.h>
 
 // Wire up the SPI Interface common lines:
-// #define SPI_CLOCK            13 //arduino <-> SPI Slave Clock Input   -> SCK (Pin 02 on McpDigitalPot DIP)
-// #define SPI_MOSI             11 //arduino <-> SPI Master Out Slave In -> SDI (Pin 03 on McpDigitalPot DIP)
-// #define SPI_MISO             12 //arduino <-> SPI Master In Slave Out -> SDO (Pin 13 on McpDigitalPot DIP)
+#define SPI_CLOCK            13 //arduino <-> SPI Slave Clock Input   -> SCK (Pin 02 on McpDigitalPot DIP)
+#define SPI_MOSI             11 //arduino <-> SPI Master Out Slave In -> SDI (Pin 03 on McpDigitalPot DIP)
+#define SPI_MISO             12 //arduino <-> SPI Master In Slave Out -> SDO (Pin 13 on McpDigitalPot DIP)
 
 // Then choose any other free pin as the Slave Select (default pin 10)
 #define MCP_DIGITAL_POT_SLAVE_SELECT_PIN 10 //arduino   <->   Chip Select      -> CS  (Pin 01 on McpDigitalPot DIP)
 
-// CALIBRATE ME: end-to-end potentiometer resistance, terminal A-terminal B
+// CALIBRATE ME
+// end-to-end potentiometer resistance, terminal A-terminal B
 float rAB_ohms = 10000.00; // 10k Ohm 
 
-// CALIBRATE ME: rW = wiper resistance (75-160 ohms)
-//McpDigitalPot digitalPot = McpDigitalPot( MCP_DIGITAL_POT_SLAVE_SELECT_PIN, rAB_ohms, rW_ohms );
+// CALIBRATE ME
+// rW = wiper resistance (75-160 ohms)
+// McpDigitalPot digitalPot = McpDigitalPot( MCP_DIGITAL_POT_SLAVE_SELECT_PIN, rAB_ohms, rW_ohms );
 // Instantiate McpDigitalPot object, with default rW (=117.5 ohm, its typical resistance)
 McpDigitalPot digitalPot = McpDigitalPot( MCP_DIGITAL_POT_SLAVE_SELECT_PIN, rAB_ohms );
 
@@ -264,7 +266,7 @@ void print3digits(int number) {
 /**
  * //////////////////////////////////
  * /// TIME-TRIGGERED ADJUSTMENTS ///
- * ////////////////////////////////
+ * //////////////////////////////////
  */
 
 void timeout()
@@ -339,7 +341,7 @@ void loop()
     print2digits(tm.Minute);
     Serial.print(':');
     print2digits(tm.Second);
-    Serial.print('.');
+    Serial.print(',');
     print3digits(millis()%1000);
     Serial.print(",");
     //int endtime = micros(); //END TIMING

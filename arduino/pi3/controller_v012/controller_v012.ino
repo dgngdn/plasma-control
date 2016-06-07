@@ -11,16 +11,22 @@
  * Temperature (degC) is read from both sensors.
  * DEFINE statements switch on and off a PID controller
  * 
- * if PID_CONTROL is 
+ * RELEASE NOTES
+ * === SINCE V009 ===
+ * added watchdog timer to auto-restart on freezes
+ * added automatic RC programming
+ * PID controller appears to be broken :(
+ * 
+ * if PID_ON is true
  * Digital potentiometer is PID controlled
- * PID setpoint: 60C
- * PID inputs: _sum_ of the thermal readings
+ * PID setpoint: e.g. 40C
+ * PID inputs: non-contact thermal reading
  * PID output: potentiometer wiper position
  * endif
  * 
- * if PID_CONTROL is false
+ * if PID_ON is false
  * Digital potentiometer is stepped through its range
- * 20% steps, 10 seconds per step
+ * e.g. 20% steps, 10 seconds per step
  * endif
  * 
  * potentiometer wiper voltage read at pin A3
@@ -45,8 +51,10 @@
  */
 
 #define DEBUG false
-#define PID_CONTROL true
+#define PID_ON true
+#define WDT_ON true      // set false for v009 behavior
 #define RTC_ON true
+#define RTC_RESET false  // set false for v009 behavior
 #define PRINT_TEMP true
 
 // Set the cycle time
@@ -55,8 +63,11 @@ long previousMillis = 0;
 int counter = 1;
 
 // Watchdog Timer Setup
+// NEW SINCE V009
 // http://www.megunolink.com/articles/how-to-detect-lockups-using-the-arduino-watchdog/
+#if WDT_ON
 #include <avr/wdt.h>
+#endif
 
 /**
  * /////////////////
@@ -69,7 +80,7 @@ int counter = 1;
  * http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
  */
 
-#if PID_CONTROL
+#if PID_ON
 #include <PID_v1.h>
 // Define Variables we'll be connecting the controller to
 double Setpoint, Input, Output;
@@ -171,19 +182,14 @@ float celcius2 = 0;             // Variable for degC, sensor 2
 #if RTC_ON
 #include <TimeLib.h>
 #include <DS1307RTC.h>
+tmElements_t tm;
 
+#if RTC_RESET
 /**
  * ///////////////////
  * /// SET THE RTC ///
  * ///////////////////
  */
-
-tmElements_t tm;
-
-const char *monthName[12] = {
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-};
 
 bool getTime(const char *str)
 {
@@ -228,7 +234,7 @@ void setrtc()
   }
 }
 #endif
-
+#endif
 
 /**
  * //////////////////////
@@ -250,7 +256,7 @@ void setup()
   // Set the scaling method, 100.0 for percentages, 1.0 for fractions
   digitalPot.scale = 100.0;
 
-#if PID_CONTROL
+#if PID_ON
   // controlled mode
   // turn the PID on
   //myPID.SetTunings(Kp,Ki,Kd) // set the tuning parameters
@@ -262,25 +268,33 @@ void setup()
 #endif
 
 #if DEBUG
-  Serial.println("timeout...");
+  Serial.println("timeout called...");
 #endif
   timeout(); // set the initial voltage
 #if DEBUG
-  Serial.println("timeout complete!");
+  Serial.println("timeout complete");
 #endif
 
 #if RTC_ON
+#if RTC_RESET
   if (!RTC.read(tm)) {
+#if DEBUG
+    Serial.println("setting rtc...");
+#endif
     setrtc();
+#if DEBUG
+    Serial.println("rtc reset");
+#endif
   }
 #endif
+#endif
 
-
-
+#if WDT_ON
   // enable the watchdog timer
   // Watchdog Timeouts: WDTO_{1,2,4,8}s
   // WDTO_{15,30,60,120,250,500}MS
   wdt_enable(WDTO_4S);
+#endif
 }
 
 /**
@@ -315,8 +329,8 @@ float temperatureCelcius(int address) {
   pec = i2c_readNak();
   i2c_stop();
 
-  // This converts high and low bytes together and processes temperature, 
-  // MSB is a error bit and is ignored for temps.
+  // combines high and low bytes and converts temperature 
+  // MSB is an error bit and is ignored for temperatures
 #if DEBUG
   Serial.println("calculating temperature...");
 #endif
@@ -367,7 +381,7 @@ void print3digits(int number) {
 void timeout()
 {
 #if DEBUG
-  Serial.println("in the timeout loop...");
+  Serial.println("starting timeout loop...");
 #endif
   // set the wiper position
   // pot0 uses pins 8,9,10; pot1 uses pins 5,6,7
@@ -384,7 +398,7 @@ void timeout()
     counter = 0;
   }
   
-#if PID_CONTROL
+#if PID_ON
   Setpoint = setVals[ counter ];
 #else
   digitalPot.setResistance( 1, setVals[counter] );
@@ -406,12 +420,20 @@ void loop()
   // reset the watchdog timer
   // if this doesn't occur within WDTO_X time
   // the system will reset
+#if WDT_ON
+#if DEBUG
+  Serial.println("resetting wdt...");
+#endif
   wdt_reset();
+#if DEBUG
+  Serial.println("wdt reset");
+#endif
+#endif
   
   celcius1 = temperatureCelcius(device1Address);// Reads data from MLX90614
   celcius2 = temperatureCelcius(device2Address);// with the given address,
                                                 // converts to °C and stores
-#if PID_CONTROL
+#if PID_ON
   // traversed only in controlled mode
   Input = celcius2; //celcius1 + celcius2;
   
@@ -434,6 +456,7 @@ void loop()
 
 #if RTC_ON
   // TIMESTAMP AND PRINT over the serial interface
+  tmElements_t tm;
   if (RTC.read(tm)) {
     //int starttime = micros(); //START TIMING
     Serial.print(tmYearToCalendar(tm.Year));
@@ -462,7 +485,7 @@ void loop()
   Serial.print(sensorValue);
 #endif
 
-#if PID_CONTROL
+#if PID_ON
   Serial.print(",");
   Serial.print(Input);
   Serial.print(",");
@@ -471,6 +494,6 @@ void loop()
   Serial.print(Output);
 #endif
   Serial.println();
-
-delay(1);                         // pause before looping
+  
+  //delay(1);                         // pause before looping
 }
