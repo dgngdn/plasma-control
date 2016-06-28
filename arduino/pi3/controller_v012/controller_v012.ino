@@ -84,9 +84,9 @@ int counter = 1;
 #include <PID_v1.h>
 // Define Variables we'll be connecting the controller to
 double Setpoint, Input, Output;
-double Kp = 0.1; // 0.1, process value control 
-double Ki = 1.0; // 1.0, integral control
-double Kd = 0.0; // 0.0, derivative control
+double Kp = 25; // 14.89, process value control 
+double Ki = 3; // 2.23, integral control
+double Kd = 0; // 0.0, derivative control
 // Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // DIRECT or REVERSE
 // controlled mode, setpoints
@@ -97,8 +97,8 @@ int setVals[] = {40};
 // uncontrolled mode, applied voltage
 //int setVals[] = {0,100,0,100,50,100,60,100,70,100,80,100,90,100,50,0,60,0,70,0,80,0,90,0,100};  // step analysis
 //int setVals[] = {0,0,100,95,90,85,80,75,70,65,60,55,50,45,40,35,40,45,50,55,60,65,70,75,80,85,90,95,100};  // power
-//int setVals[] = {0,0,100,98,96,94,92,90,88,86,84,82,80,78,76,74,72,70,68,66,64,62,60,58,56,54,52,50,48,46,44,42,40,38,36,34,32};  // power
-int setVals[] = {100};
+int setVals[] = {0,0,100,98,96,94,92,90,88,86,84,82,80,78,76,74,72,70,68,66,64,62,60,58,56,54,52,50,48,46,44,42,40,38,36,34,32};  // power
+//int setVals[] = {100};
 #endif
 
 
@@ -262,7 +262,7 @@ void setup()
   //myPID.SetTunings(Kp,Ki,Kd) // set the tuning parameters
   Setpoint = setVals[0];                // controller drives toward this value
   myPID.SetControllerDirection(DIRECT); // DIRECT or REVERSE
-  myPID.SetOutputLimits(0,100);         // PWM output range is 0-100 (off-on)
+  myPID.SetOutputLimits(1,100);         // PWM output range is 0-100 (off-on)
   myPID.SetSampleTime(50);              // in milliseconds
   myPID.SetMode(AUTOMATIC);             // AUTOMATIC = on
 #endif
@@ -293,7 +293,7 @@ void setup()
   // enable the watchdog timer
   // Watchdog Timeouts: WDTO_{1,2,4,8}s
   // WDTO_{15,30,60,120,250,500}MS
-  wdt_enable(WDTO_4S);
+  wdt_enable(WDTO_1S);
 #endif
 }
 
