@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function gettrace {
-    python acquire_oscilloscope.py
+    python run_oscilloscope.py
     sleep 5
 }
 

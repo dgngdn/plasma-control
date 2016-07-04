@@ -12,6 +12,23 @@
  * DEFINE statements switch on and off a PID controller
  * 
  * RELEASE NOTES
+ * 
+ * === ANALOG INPUTS ===
+ * A0  digital potentiometer output - flow control
+ * A1  analog potentiometer output - manual control setpoint 
+ * A2  sensor - embedded thermocouple amp output
+ * A3  digital potentiometer output - voltage control
+ * A4  I2C data line
+ * A5  I2C data line
+ * 
+ * === SERIAL PRINT LOOP ===
+ * datetime,millis,Tsurf,Ttube,Temb,pot_volt,pot_flow,ctrl_in,ctrl_set,ctrl_out,ctrl_set_manual
+ * 
+ * === SINCE V012 ===
+ * added potentiometers to control frequency and gas flow rate
+ * (attempted to) add #defines to make code easier to read and change
+ * printing more values (e.g. pot outputs) for debugging
+ * 
  * === SINCE V009 ===
  * added watchdog timer to auto-restart on freezes
  * added automatic RC programming
@@ -50,16 +67,31 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#define DEBUG false
-#define PID_ON true
+#define DEBUG true
+#define PID_ON false
 #define WDT_ON true      // set false for v009 behavior
 #define RTC_ON true
 #define RTC_RESET false  // set false for v009 behavior
 #define PRINT_TEMP true
 #define MANUAL_SETPOINT true // set the setpoint with the potentiometer
 
+#define CTRL_POT POT_VOLT // set the control potentiometer
+#define CTRL_VAR VAR_VOLT // set the control variable
+#define INIT_VOLT 100.0 // initial voltage potentiometer setting
+#define INIT_FREQ 92.0 // initial frequency potentiometer setting
+#define INIT_FLOW 10.0 // initial gas flow potentiometer setting
+#define PID_OUTPUT_MIN 40  // 1
+#define PID_OUTPUT_MAX 100 // 92.0
+
+#define VAR_VOLT 1 // voltage is controlled by potentiometer #1, MCP #1
+#define VAR_FREQ 2 // frequency is controlled by potentiometer #2, MCP #1
+#define VAR_FLOW 2 // gas flow is controlled by potentiometer #1, MCP #2
+#define POT_VOLT digitalPot1
+#define POT_FREQ digitalPot1
+#define POT_FLOW digitalPot2
+
 // Set the cycle time
-long timeoutInterval = 5000; //300000; // this is in milliseconds
+long timeoutInterval = 50; //300000; // this is in milliseconds
 long previousMillis = 0;
 int counter = 1;
 
@@ -85,14 +117,19 @@ int counter = 1;
 #include <PID_v1.h>
 // Define Variables we'll be connecting the controller to
 double Setpoint, Input, Output;
-double Kp = 0; // 25 // 14.89, process value control 
-double Ki = 0.5;  // 3  // 2.23, integral control
-double Kd = 0;  // 0  // 0.0, derivative control
+double Kp = 0.00;  // 0.0 // 25.0 // 14.89 // process value control 
+double Ki = 0.50;  // 0.5 // 3.0  // 2.23  // integral control
+double Kd = 0.00;  // 0.0 // 0.0  // 0.0   // derivative control
+// Values that generally work well:
+// 0.00, 0.50, 0.00 - frequency controller
+// 0.10, 0.05, 0.02 - flow controller
+
+
 // Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // DIRECT or REVERSE
 // controlled mode, setpoints
 //int setVals[] = {20,70,20,70,30,70,40,70,50,70,60,70,20,30,20,40,20,50,20,60,20,70};
-int setVals[] = {40};
+int setVals[] = {55};
 
 #else
 // uncontrolled mode, applied voltage
@@ -102,10 +139,10 @@ int setVals[] = {40};
 //int setVals[] = {66,69,72,75,78,81,84,87,90,93,96,99};
 //int setVals[] = {0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100};
 //int setVals[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100};
-int setVals[] = {100,90,80,70,60,50,40,30,20,10,0,10,20,30,40,50,60,70,80,90,100};
+//int setVals[] = {100,90,80,70,60,50,40,30,20,10,0,10,20,30,40,50,60,70,80,90,100};
 //int setVals[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,100,99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60,59,58,57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0};
 //int setVals[] = {40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,100,99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60,59,58,57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41,40};
-//int setVals[] = {100};
+int setVals[] = {100};
 #endif 
 
 
@@ -138,7 +175,9 @@ float celcius3 = 0;
 // #define SPI_MISO             12 //arduino <-> SPI Master In Slave Out -> SDO (Pin 13 on McpDigitalPot DIP)
 
 // Then choose any other free pin as the Slave Select (default pin 10)
-#define MCP_DIGITAL_POT_SLAVE_SELECT_PIN 10 //arduino   <->   Chip Select      -> CS  (Pin 01 on McpDigitalPot DIP)
+// each additional SPI device needs its own CS pin
+#define MCP_POT1_CS 10  //arduino   <->   Chip Select      -> CS  (Pin 01 on McpDigitalPot DIP)
+#define MCP_POT2_CS 9  // for the second MCP4261
 
 // CALIBRATE ME: end-to-end potentiometer resistance, terminal A-terminal B
 float rAB_ohms = 10000.00; // 10k Ohm 
@@ -146,8 +185,10 @@ float rAB_ohms = 10000.00; // 10k Ohm
 // CALIBRATE ME: rW = wiper resistance (75-160 ohms)
 //McpDigitalPot digitalPot = McpDigitalPot( MCP_DIGITAL_POT_SLAVE_SELECT_PIN, rAB_ohms, rW_ohms );
 // Instantiate McpDigitalPot object, with default rW (=117.5 ohm, its typical resistance)
-McpDigitalPot digitalPot = McpDigitalPot( MCP_DIGITAL_POT_SLAVE_SELECT_PIN, rAB_ohms );
+McpDigitalPot digitalPot1 = McpDigitalPot( MCP_POT1_CS, rAB_ohms );
 
+// Adding a second MCP4261...
+McpDigitalPot digitalPot2 = McpDigitalPot( MCP_POT2_CS, rAB_ohms );
 
 /**
  * //////////////////////
@@ -269,7 +310,13 @@ void setup()
   
   // (optional)
   // Set the scaling method, 100.0 for percentages, 1.0 for fractions
-  digitalPot.scale = 100.0;
+  digitalPot1.scale = 100.0;
+  digitalPot2.scale = 100.0;
+  
+  // set potentiometer initial positions
+  POT_VOLT.setResistance( VAR_VOLT, INIT_VOLT);
+  POT_FREQ.setResistance( VAR_FREQ, INIT_FREQ);
+  POT_FLOW.setResistance( VAR_FLOW, INIT_FLOW);
 
 #if PID_ON
   // controlled mode
@@ -277,7 +324,7 @@ void setup()
   //myPID.SetTunings(Kp,Ki,Kd) // set the tuning parameters
   Setpoint = setVals[0];                // controller drives toward this value
   myPID.SetControllerDirection(DIRECT); // DIRECT or REVERSE
-  myPID.SetOutputLimits(1,100);         // PWM output range is 0-100 (off-on)
+  myPID.SetOutputLimits(PID_OUTPUT_MIN,PID_OUTPUT_MAX);         // PWM output range is 0-100 (off-on)
   myPID.SetSampleTime(50);              // in milliseconds
   myPID.SetMode(AUTOMATIC);             // AUTOMATIC = on
 #endif
@@ -422,9 +469,9 @@ void timeout()
   
 #else
   #if MANUAL_SETPOINT
-    digitalPot.setResistance( 2, analogRead(A1)/10. );
+    CTRL_POT.setResistance( CTRL_VAR, analogRead(A1)/10. );
   #else
-    digitalPot.setResistance( 2, setVals[counter] );
+    CTRL_POT.setResistance( CTRL_VAR, setVals[counter] );
   #endif
 #endif
   counter += 1;
@@ -463,8 +510,7 @@ void loop()
   
   if ( myPID.Compute() ) {
     // digitalPot.setResistance(pot#, 0-100);
-    digitalPot.setResistance(2, Output); // this is what the PID is controlling
-    digitalPot.setResistance(1, 100); // set the other pot too
+    CTRL_POT.setResistance( CTRL_VAR, Output ); // this is what the PID is controlling
   }
 #endif
 
@@ -477,7 +523,11 @@ void loop()
   }
 
   // Read the input from the potentiometer wiper at A3
-  int sensorValue = analogRead(A3);
+  // voltage ctrl output value
+  int volt_out = analogRead(A3);
+  // Read the input from the potentiometer wiper at A3
+  // flow ctrl output value
+  int flow_out = analogRead(A0);
   
   // Read the analog input from the thermocouple amp
   celcius3 = 21.5 + (analogRead(A2)*5/1024.-1.1035)/0.0148;
@@ -511,9 +561,11 @@ void loop()
   Serial.print(",");
   Serial.print(celcius2);
   Serial.print(",");
-  Serial.print(celcius3);
+  //Serial.print(celcius3);
+  //Serial.print(",");
+  Serial.print(volt_out);
   Serial.print(",");
-  Serial.print(sensorValue);
+  Serial.print(flow_out);
 #endif
 
 #if PID_ON
