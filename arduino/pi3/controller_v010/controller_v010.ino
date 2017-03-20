@@ -353,8 +353,9 @@ void loop()
     print2digits(tm.Minute);
     Serial.print(':');
     print2digits(tm.Second);
-    Serial.print('.');
-    print3digits(millis()%1000);
+    Serial.print(',');
+    //print3digits(millis()%1000);
+    Serial.print(millis());
     Serial.print(",");
     //int endtime = micros(); //END TIMING
   }

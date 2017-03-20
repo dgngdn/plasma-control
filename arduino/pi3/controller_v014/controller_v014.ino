@@ -67,21 +67,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#define DEBUG true
+#define DEBUG false
 #define PID_ON false
 #define WDT_ON true      // set false for v009 behavior
 #define RTC_ON true
 #define RTC_RESET false  // set false for v009 behavior
 #define PRINT_TEMP true
-#define MANUAL_SETPOINT true // set the setpoint with the potentiometer
+#define MANUAL_SETPOINT false // set the setpoint with the potentiometer
 
 #define CTRL_POT POT_VOLT // set the control potentiometer
 #define CTRL_VAR VAR_VOLT // set the control variable
 #define INIT_VOLT 100.0 // initial voltage potentiometer setting
-#define INIT_FREQ 92.0 // initial frequency potentiometer setting
-#define INIT_FLOW 10.0 // initial gas flow potentiometer setting
-#define PID_OUTPUT_MIN 40  // 1
-#define PID_OUTPUT_MAX 100 // 92.0
+#define INIT_FREQ 92 // initial frequency potentiometer setting
+#define INIT_FLOW 20.0 // initial gas flow potentiometer setting
+#define PID_OUTPUT_MIN 1  // 1
+#define PID_OUTPUT_MAX 92.0 // 92.0
 
 #define VAR_VOLT 1 // voltage is controlled by potentiometer #1, MCP #1
 #define VAR_FREQ 2 // frequency is controlled by potentiometer #2, MCP #1
@@ -91,7 +91,7 @@
 #define POT_FLOW digitalPot2
 
 // Set the cycle time
-long timeoutInterval = 50; //300000; // this is in milliseconds
+long timeoutInterval = 600000; //300000; // this is in milliseconds
 long previousMillis = 0;
 int counter = 1;
 
@@ -129,7 +129,7 @@ double Kd = 0.00;  // 0.0 // 0.0  // 0.0   // derivative control
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // DIRECT or REVERSE
 // controlled mode, setpoints
 //int setVals[] = {20,70,20,70,30,70,40,70,50,70,60,70,20,30,20,40,20,50,20,60,20,70};
-int setVals[] = {55};
+int setVals[] = {45};
 
 #else
 // uncontrolled mode, applied voltage
@@ -143,6 +143,7 @@ int setVals[] = {55};
 //int setVals[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,100,99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60,59,58,57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0};
 //int setVals[] = {40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,100,99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60,59,58,57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41,40};
 int setVals[] = {100};
+//int setVals[] = {0,10,20,30,40,50,60,70,80,90,100};
 #endif 
 
 
@@ -314,9 +315,9 @@ void setup()
   digitalPot2.scale = 100.0;
   
   // set potentiometer initial positions
-  POT_VOLT.setResistance( VAR_VOLT, INIT_VOLT);
-  POT_FREQ.setResistance( VAR_FREQ, INIT_FREQ);
-  POT_FLOW.setResistance( VAR_FLOW, INIT_FLOW);
+  POT_VOLT.setResistance( VAR_VOLT, INIT_VOLT );
+  POT_FREQ.setResistance( VAR_FREQ, INIT_FREQ );
+  POT_FLOW.setResistance( VAR_FLOW, INIT_FLOW );
 
 #if PID_ON
   // controlled mode
