@@ -6,3 +6,8 @@ and see my [colloquium presentation ](https://www.brandoncurtis.com/present/coll
 Due for major reorganization, just as soon as I file my thesis...
 
 In the meantime, visit [the GravesLab website](http://www.graveslab.org/).
+
+![Helium plasma jet](https://raw.githubusercontent.com/brandoncurtis/plasma-control/bruggeman-jet.jpg)
+
+![power versus helium flowrate](https://raw.githubusercontent.com/brandoncurtis/plasma-control/Set_q-power_varied_Set_f.png)
+
