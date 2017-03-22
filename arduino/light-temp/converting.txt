@@ -1,0 +1,271 @@
+#define PID_ON false
+#define RTC_ON true
+#define RTC_RESET false         // set false for v009 behavior
+#define MANUAL_SETPOINT false   // set the setpoint with the potentiometer
+#define RANDOM_INPUTS false
+
+#define CTRL_VAR set_volt
+#define CTRL_VAR2 set_flow
+#define CTRL_VAR3 set_freq
+#define CTRL_DEV DEV_VOLT       // set the control potentiometer
+#define CTRL_POT POT_VOLT       // set the control variable
+
+#define PID_OUTPUT_MIN 1        // 1
+#define PID_OUTPUT_MAX 100.0    // 92.0
+#define STEP_DURATION 120       // in seconds
+
+#define VOLT_INIT 0           // initial voltage potentiometer setting
+#define VOLT_MIN 40
+#define VOLT_MAX 100
+#define FREQ_INIT 94
+#define FREQ_MIN 1
+#define FREQ_MAX 100
+#define FLOW_INIT 5
+#define FLOW_MAX 25
+#define FLOW_MIN 4
+
+// for input step testing, use: setVals[], setVals2[], setVals3[]
+
+// values for control variable 1
+//int setVals[] = {40,45,50,55};
+int setVals[] = {0,50,70,50,0};
+//int setVals[] = {0,10,20,30,40,50,60,70,80,90,100};
+
+// values for control variable 2
+int counter2 = 0;
+//int setVals2[] = {3,5,7};
+int setVals2[] = {10,20};
+
+// values for control variable 3
+int counter3 = 0;
+int setVals3[] = {80};
+
+// SHOULDN'T HAVE TO EDIT FROM HERE DOWN!
+
+// defines which potentiometer is actuating each variable
+#define POT_VOLT 1
+#define POT_FREQ 2
+#define POT_FLOW 2
+#define DEV_VOLT digitalPot1
+#define DEV_FREQ digitalPot1
+#define DEV_FLOW digitalPot2
+
+// defines the initial values for each variable
+float set_value = 0;
+float set_volt = VOLT_INIT;
+float set_freq = FREQ_INIT;
+float set_flow = FLOW_INIT;
+
+// Set the cycle time
+long timeoutInterval = STEP_DURATION*1000; // this is in milliseconds
+long previousMillis = 0;
+int counter = 0;
+
+// when SET1 IS COMPLETE...
+// iterate SET2 and repeat!
+void set_complete() {
+  if( counter2 >= sizeof(setVals2) / sizeof(int) ) {
+    set_complete2();
+    counter2 = 0;
+  }
+  CTRL_VAR2 = setVals2[ counter2 ];
+  counter2 += 1;
+}
+
+// when SET2 IS COMPLETE...
+// iterate SET3 and repeat!
+void set_complete2() {
+  if( counter3 >= sizeof(setVals3) / sizeof(int) ) {
+    set_complete3();
+    counter3 = 0;
+  }
+  CTRL_VAR3 = setVals3[ counter3 ];
+  counter3 += 1;
+}
+
+// when SET3 IS COMPLETE...
+// shut everything down and HOLD
+void set_complete3() {
+  CTRL_VAR = 0;
+  CTRL_VAR2 = 0;
+  CTRL_VAR3 = 0;
+  while ( true ) {
+    delay(1);
+  }
+}
+
+
+
+// SETUP FUNCTIONS
+void setup() {
+
+
+  #if PID_ON
+    // controlled mode
+    // turn the PID on
+    //myPID.SetTunings(Kp,Ki,Kd) // set the tuning parameters
+    Setpoint = setVals[0];                // controller drives toward this value
+    myPID.SetControllerDirection(DIRECT); // DIRECT or REVERSE
+    myPID.SetOutputLimits(PID_OUTPUT_MIN,PID_OUTPUT_MAX);         // PWM output range is   0-100 (off-on)
+    myPID.SetSampleTime(50);              // in milliseconds
+    myPID.SetMode(AUTOMATIC);             // AUTOMATIC = on
+  #endif
+
+  #if DEBUG
+    Serial.println("timeout called...");
+  #endif
+
+  timeout(); // set the initial voltage
+
+  #if DEBUG
+    Serial.println("timeout complete");
+  #endif
+}
+
+// TIME-TRIGGERED ADJUSTMENTS
+void timeout() {
+  #if DEBUG
+    Serial.println("starting timeout loop...");
+  #endif
+
+  if( counter >= sizeof(setVals) / sizeof(int) ) {
+    set_complete();
+    counter = 0;
+  }
+
+  // set the wiper position
+  // pot0 uses pins 8,9,10; pot1 uses pins 5,6,7
+
+  //digitalPot.setResistance(pot#, 0-100);
+  //digitalPot.setResistance(1, 100-counter); // start high and go low
+  //digitalPot.setResistance(1, counter); // start low and go high
+  //digitalPot.setResistance(1, 100); // fixed value
+  //int setVal = setVals[random(0,sizeof(setVals)/sizeof(int))];
+  //digitalPot.setResistance(1,setVal); // value from selection
+  //counter += 10.0; // change in increments of 10
+
+  // choose the setpoint for the next step
+  #if MANUAL_SETPOINT
+    // get setpoint from potentiometer reading
+    set_value = analogRead(A0) / 10.;
+  #else
+    set_value = setVals[ counter ];
+  #endif
+
+  #if PID_ON // CLOSED LOOP
+    Setpoint = set_value;
+  #elif RANDOM_INPUTS
+    set_volt = random( VOLT_MIN, VOLT_MAX );
+    set_freq = random( FREQ_MIN, FREQ_MAX );
+    set_flow = random( FLOW_MIN, FLOW_MAX );
+  #else
+    CTRL_VAR = set_value;
+    // actually set the output values
+    DEV_VOLT.setResistance( POT_VOLT, set_volt );
+    DEV_FREQ.setResistance( POT_FREQ, set_freq );
+    DEV_FLOW.setResistance( POT_FLOW, set_flow );
+  #endif
+
+  counter += 1;
+}
+
+// MAIN LOOP
+void loop() {
+
+  #if PID_ON
+    // traversed only in controlled mode
+    Input = celcius1; //celcius1 + celcius2;
+
+    if ( myPID.Compute() ) {
+      // digitalPot.setResistance(pot#, 0-100);
+      CTRL_POT.setResistance( CTRL_VAR, Output ); // this is what the PID is controlling
+    }
+  #endif
+
+  // traversed in controlled AND uncontrolled mode
+  // timeout loop for time-triggered adjustments
+  if (  millis() - previousMillis > timeoutInterval ) {
+    timeout();
+    previousMillis = millis();
+  }
+
+  // Read the input from the potentiometer wiper at A1
+  // voltage ctrl output value
+  int volt_out = analogRead(A1);
+  // Read the input from the potentiometer wiper at A2
+  // flow ctrl output value
+  int freq_out = analogRead(A2);
+  // Read the input from the potentiometer wiper at A3
+  // flow ctrl output value
+  int flow_out = analogRead(A3);
+
+  // 2016-07-04 COMMENTED OUT UNTIL THIS IS CALIBRATED AND CONDITIONED PROPERLY
+  // Read the analog input from the thermocouple amp
+  //celcius3 = 21.5 + (analogRead(A2)*5/1024.-1.1035)/0.0148;
+
+  // PRINT MEASURED CONTROL OUTPUTS
+  Serial.print(volt_out);
+  Serial.print(",");
+  Serial.print(freq_out);
+  Serial.print(",");
+  Serial.print(flow_out);
+  Serial.print(",");
+
+  // PRINT CONTROL OUTPUTS
+  Serial.print(set_volt);
+  Serial.print(",");
+  Serial.print(set_freq);
+  Serial.print(",");
+  Serial.print(set_flow);
+  Serial.print(",");
+
+  // PRINT MEASURED VALUES
+  Serial.print(celcius1);
+  Serial.print(",");
+  Serial.print(celcius2);
+  Serial.print(",");
+  Serial.print(celcius3);
+
+  #if PID_ON
+    Serial.print(",");
+    Serial.print(Input);
+    Serial.print(",");
+    Serial.print(Setpoint);
+    Serial.print(",");
+    Serial.print(Output);
+
+  #endif
+  Serial.println();
+
+  //delay(1);                         // pause before looping
+}
+
+// NOT USED | UTILITY: ZERO-PADDING TO 2 DIGITS
+String pad2digits(int number) {
+  String mystring;
+  if (number >= 0 && number < 10) {
+    mystring += '0';
+  }
+  mystring += number;
+  return mystring;
+}
+
+// NOT USED | builds timestamp from RTC's tmElements_t object
+String get_tstamp_str() {
+  String stamp;
+  tmElements_t tm;
+  if (RTC.read(tm)) {
+    stamp += tmYearToCalendar(tm.Year);
+    stamp += '-';
+    stamp += pad2digits(tm.Month);
+    stamp += '-';
+    stamp += pad2digits(tm.Day);
+    stamp += '_';
+    stamp += pad2digits(tm.Hour);
+    stamp += ':';
+    stamp += pad2digits(tm.Minute);
+    stamp += ':';
+    stamp += pad2digits(tm.Second);
+  }
+  return stamp;
+}
