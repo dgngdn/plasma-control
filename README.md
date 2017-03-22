@@ -7,7 +7,7 @@ Due for major reorganization, just as soon as I file my thesis...
 
 In the meantime, visit [the GravesLab website](http://www.graveslab.org/).
 
-![Helium plasma jet](https://raw.githubusercontent.com/brandoncurtis/plasma-control/results/bruggeman-jet.jpg)
+![Helium plasma jet](https://raw.githubusercontent.com/brandoncurtis/plasma-control/master/results/bruggeman-jet.jpg)
 
-![power versus helium flowrate](https://raw.githubusercontent.com/brandoncurtis/plasma-control/results/Set_q-power_varied_Set_f.png)
+![power versus helium flowrate](https://raw.githubusercontent.com/brandoncurtis/plasma-control/master/results/Set_q-power_varied_Set_f.png)
 
