@@ -9,7 +9,8 @@ device = os.open("/dev/usbtmc0",os.O_RDWR)
 wait = 1
 channels = 4
 current_directory = os.path.dirname(__file__)
-save_directory = os.path.join(current_directory,os.pardir,'in','oscilloscope')
+#save_directory = os.path.join(current_directory,os.pardir,'in','oscilloscope')
+save_directory = os.getcwd()
 
 while True:
   data = []
@@ -22,7 +23,7 @@ while True:
       os.write(device,":WAV:DATA?")
       rawdata = os.read(device,4000)
       cleandata = np.frombuffer(rawdata,'B')[11:-10:]
-
+      print(len(cleandata))
       os.write(device,"WAV:PREAMBLE?")
       preamble = os.read(device,4000).split(',')
       yincr = float(preamble[7])
