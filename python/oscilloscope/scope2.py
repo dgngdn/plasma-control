@@ -11,6 +11,12 @@ from matplotlib import pyplot as plt
 import datetime
 import visa
 import os
+import argparse
+
+parser = argparse.ArgumentParser(description="collect data from Rigol oscilloscope")
+parser.add_argument('--plot', type=bool, default=False,
+                        help='whether to plot the acquired waveforms')
+args = parser.parse_args()
 
 # list of the channels you want to measure
 SAVEDIR = os.path.join(os.getcwd(),'data') # path to the directory to save files in
@@ -41,8 +47,8 @@ def read_from_channel(channel):
        returns numpy array containing data"""
     instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
     #data = instr.query_values(":WAVEFORM:DATA?")
-    preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=linesplit)
-    ydata = np.array(instr.query(":WAVEFORM:DATA?")[11:].split(','),dtype=float)
+    preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
+    ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
     xdata = generate_xdata(len(ydata),preamble)
     yscaled = wavscale(measured=ydata,pre=preamble)
     data = np.array(zip(xdata,yscaled), dtype=[('x',float),('y',float)])
@@ -80,18 +86,26 @@ def scale_waveform(measured,pre):
     scaled = (measured - yorig - yref) * yincr
     return measured
 
-def linesplit(s):
+def preamble_clean(s):
     return filter(None, s.split('\n')[0].split(','))
+
+def wave_clean(s):
+    return filter(None, s[11:].split('\n')[0].split(','))
 
 if __name__ == "__main__":
     wavscale = np.vectorize(scale_waveform, excluded=['pre'])
-    curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    print("current time: {}".format(curtime))
     instr.write(":WAVEFORM:MODE NORMAL")
     instr.write(":WAVEFORM:FORMAT ASCII")
+    instr.write(":STOP")
+    curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    print("current time: {}".format(curtime))
+
     for channel in CHANNELS:
         data = read_from_channel(channel)
         fname = "{}_chan{}".format(curtime,channel)
-        plot_data(data,fname,ylabel=YUNIT[channel])
+        if args.plot:
+            ylabel = YUNIT[channel]
+            plot_data(data,fname,ylabel)
         save_data(data,fname)
     print("DONE.")
+    instr.write(":RUN")
