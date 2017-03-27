@@ -21,16 +21,16 @@ parser.add_argument("--plot", help="plot the acquired waveforms",
                         action="store_true")
 parser.add_argument("--loop", help="repeatedly save oscilloscope data",
                         action="store_true")
-args = parser.parse_args()
-if args.plot:
+opts = parser.parse_args()
+if opts.plot:
     print("plotting waveforms")
-if args.loop:
+if opts.loop:
     print("continuously acquiring data")
-print("channels: {}".format(args.channels))
+print("channels: {}".format(opts.channels))
 
 # list of the channels you want to measure
 SAVEDIR = os.path.join(os.getcwd(),'data') # path to the directory to save files in
-##CHANNELS = [1,4] # the channel numbers on the oscilloscope to record
+CHANNELS = [1,4] # the channel numbers on the oscilloscope to record
 XUNIT = 's' # x-axis label
 YUNIT = {1:'potential,volts',4:'potential,volts'} # y-units for each channel
 
@@ -105,23 +105,24 @@ if __name__ == "__main__":
     # for each channel, grab the preamble containing the oscilloscope scaling information
     # save to a dictionary for future playing!
     preambles = {}
-    for channel in args.channels:
+    for channel in CHANNELS: #opts.channels:
         instr.write(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
         preambles[str(channel)] = preamble
+    print(preambles)
 
     while run:
         instr.write(":STOP")
         curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
         print("current time: {}".format(curtime))
-        for channel in args.channels:
+        for channel in CHANNELS: #opts.channels:
             data = read_from_channel(channel,preambles[str(channel)])
             fname = "{}_chan{}".format(curtime,channel)
-            if args.plot:
+            if opts.plot:
                 ylabel = YUNIT[str(channel)]
                 plot_data(data,fname,ylabel)
             save_data(data,fname)
         print("DONE.")
         instr.write(":RUN")
         time.sleep(0.1)
-        run = args.loop
+        run = opts.loop
