@@ -15,24 +15,23 @@ import argparse
 import time
 
 parser = argparse.ArgumentParser(description="collect data from Rigol oscilloscope")
-parser.add_argument("--chan", nargs='+', type=int, help="<required> channels to acquire",
+parser.add_argument("--chan", nargs='+', type=int, help="<req> channels to acquire",
                         action="store",dest="channels", required=True)
 parser.add_argument("--plot", help="plot the acquired waveforms",
                         action="store_true")
 parser.add_argument("--loop", help="repeatedly save oscilloscope data",
                         action="store_true")
 opts = parser.parse_args()
+
+print("acquiring channels: {}".format(opts.channels))
 if opts.plot:
     print("plotting waveforms")
 if opts.loop:
     print("continuously acquiring data")
-print("channels: {}".format(opts.channels))
 
-# list of the channels you want to measure
-SAVEDIR = os.path.join(os.getcwd(),'data') # path to the directory to save files in
-CHANNELS = [1,4] # the channel numbers on the oscilloscope to record
+SAVEDIR = os.path.join(os.getcwd(),'data') # path to the directory to save files
 XUNIT = 's' # x-axis label
-YUNIT = {1:'potential,volts',4:'potential,volts'} # y-units for each channel
+YUNIT = {1:'potential,volts',2:'potential,volts',3:'potential,volts',4:'potential,volts'} # y-units for each channel
 
 # create device manager object
 try:
@@ -51,7 +50,7 @@ print("device info: {}".format(instr.query("*IDN?")))
 def read_from_channel(channel,preamble):
     """reads from specified oscilloscope channel;
        returns numpy array containing scaled (x,y) data"""
-    instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
+    instr.write(":WAVEFORM:SOURCE CHANNEL".format(channel))
     ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
     xdata = generate_xdata(len(ydata),preamble)
     yscaled = wavscale(measured=ydata,pre=preamble)
@@ -105,9 +104,8 @@ if __name__ == "__main__":
     # for each channel, grab the preamble containing the oscilloscope scaling information
     # save to a dictionary for future playing!
     preambles = {}
-    for channel in CHANNELS: #opts.channels:
-        print(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
-        instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
+    for channel in opt.channels:
+        instr.write(":WAVEFORM:SOURCE CHANNEL".format(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
         preambles[str(channel)] = preamble
     print(preambles)
@@ -116,7 +114,7 @@ if __name__ == "__main__":
         instr.write(":STOP")
         curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
         print("current time: {}".format(curtime))
-        for channel in CHANNELS: #opts.channels:
+        for channel in opts.channels:
             data = read_from_channel(channel,preambles[str(channel)])
             fname = "{}_chan{}".format(curtime,channel)
             if opts.plot:
