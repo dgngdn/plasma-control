@@ -104,7 +104,7 @@ if __name__ == "__main__":
     # for each channel, grab the preamble containing the oscilloscope scaling information
     # save to a dictionary for future playing!
     preambles = {}
-    for channel in opt.channels:
+    for channel in opts.channels:
         instr.write(":WAVEFORM:SOURCE CHANNEL".format(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
         preambles[str(channel)] = preamble
