@@ -45,11 +45,10 @@ instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR') # contro
 
 print("device info: {}".format(instr.query("*IDN?")))
 
-def read_from_channel(channel):
+def read_from_channel(channel,preamble):
     """reads from specified oscilloscope channel;
        returns numpy array containing data"""
     instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
-    preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
     ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
     xdata = generate_xdata(len(ydata),preamble)
     yscaled = wavscale(measured=ydata,pre=preamble)
@@ -99,6 +98,7 @@ if __name__ == "__main__":
     instr.write(":WAVEFORM:MODE NORMAL")
     instr.write(":WAVEFORM:FORMAT ASCII")
     run = True
+    preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
 
     while run:
         instr.write(":STOP")
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         print("current time: {}".format(curtime))
 
         for channel in CHANNELS:
-            data = read_from_channel(channel)
+            data = read_from_channel(channel,preamble)
             fname = "{}_chan{}".format(curtime,channel)
             if args.plot:
                 ylabel = YUNIT[channel]
