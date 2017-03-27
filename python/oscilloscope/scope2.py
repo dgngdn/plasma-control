@@ -21,7 +21,6 @@ parser.add_argument("--plot", help="plot the acquired waveforms",
                         action="store_true")
 parser.add_argument("--loop", help="repeatedly save oscilloscope data",
                         action="store_true")
-parser.add_argument("")
 args = parser.parse_args()
 if args.plot:
     print("plotting waveforms")
