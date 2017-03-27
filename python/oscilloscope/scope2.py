@@ -108,7 +108,7 @@ if __name__ == "__main__":
     for channel in args.channels:
         instr.write(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
-        preambles[channel] = preamble
+        preambles[str(channel)] = preamble
 
     while run:
         instr.write(":STOP")
