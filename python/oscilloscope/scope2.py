@@ -12,6 +12,7 @@ import datetime
 import visa
 import os
 import argparse
+import time
 
 parser = argparse.ArgumentParser(description="collect data from Rigol oscilloscope")
 parser.add_argument("--plot", help="plot the acquired waveforms",
@@ -101,7 +102,7 @@ if __name__ == "__main__":
 
     while run:
         instr.write(":STOP")
-        curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
         print("current time: {}".format(curtime))
 
         for channel in CHANNELS:
