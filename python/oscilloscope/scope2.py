@@ -15,7 +15,7 @@ import argparse
 import time
 
 parser = argparse.ArgumentParser(description="collect data from Rigol oscilloscope")
-parser.add_argument("--chan", nargs='+', help="<required> channels to acquire",
+parser.add_argument("--chan", nargs='+', type=int, help="<required> channels to acquire",
                         action="store",dest="channels", required=True)
 parser.add_argument("--plot", help="plot the acquired waveforms",
                         action="store_true")
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # save to a dictionary for future playing!
     preambles = {}
     for channel in args.channels:
-        instr.write(":WAVEFORM:SOURCE CHANNEL" + channel)
+        instr.write(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
         preambles[channel] = preamble
 
@@ -115,10 +115,10 @@ if __name__ == "__main__":
         curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
         print("current time: {}".format(curtime))
         for channel in args.channels:
-            data = read_from_channel(int(channel),preambles[channel])
+            data = read_from_channel(channel,preambles[str(channel)])
             fname = "{}_chan{}".format(curtime,channel)
             if args.plot:
-                ylabel = YUNIT[int(channel)]
+                ylabel = YUNIT[str(channel)]
                 plot_data(data,fname,ylabel)
             save_data(data,fname)
         print("DONE.")
