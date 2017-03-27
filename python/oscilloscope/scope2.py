@@ -47,7 +47,7 @@ print("device info: {}".format(instr.query("*IDN?")))
 
 def read_from_channel(channel,preamble):
     """reads from specified oscilloscope channel;
-       returns numpy array containing data"""
+       returns numpy array containing scaled (x,y) data"""
     instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
     ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
     xdata = generate_xdata(len(ydata),preamble)
@@ -98,15 +98,21 @@ if __name__ == "__main__":
     instr.write(":WAVEFORM:MODE NORMAL")
     instr.write(":WAVEFORM:FORMAT ASCII")
     run = True
-    preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
+
+    # for each channel, grab the preamble containing the oscilloscope scaling information
+    # save to a dictionary for future playing!
+    preambles = {}
+    for channel in CHANNELS:
+        instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
+        preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
+        preambles[str(channel)] = preamble
 
     while run:
         instr.write(":STOP")
         curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
         print("current time: {}".format(curtime))
-
         for channel in CHANNELS:
-            data = read_from_channel(channel,preamble)
+            data = read_from_channel(channel,preambles[str(channel)])
             fname = "{}_chan{}".format(curtime,channel)
             if args.plot:
                 ylabel = YUNIT[channel]
