@@ -26,6 +26,7 @@ if args.plot:
     print("plotting waveforms")
 if args.loop:
     print("continuously acquiring data")
+print("channels: {}".format(args.channels))
 
 # list of the channels you want to measure
 SAVEDIR = os.path.join(os.getcwd(),'data') # path to the directory to save files in
