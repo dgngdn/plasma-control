@@ -106,19 +106,19 @@ if __name__ == "__main__":
     # save to a dictionary for future playing!
     preambles = {}
     for channel in args.channels:
-        instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
+        instr.write(":WAVEFORM:SOURCE CHANNEL" + channel)
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
-        preambles[str(channel)] = preamble
+        preambles[channel] = preamble
 
     while run:
         instr.write(":STOP")
         curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
         print("current time: {}".format(curtime))
         for channel in args.channels:
-            data = read_from_channel(channel,preambles[str(channel)])
+            data = read_from_channel(int(channel),preambles[channel])
             fname = "{}_chan{}".format(curtime,channel)
             if args.plot:
-                ylabel = YUNIT[channel]
+                ylabel = YUNIT[int(channel)]
                 plot_data(data,fname,ylabel)
             save_data(data,fname)
         print("DONE.")
