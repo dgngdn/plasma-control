@@ -21,6 +21,8 @@ parser.add_argument("--plot", help="plot the acquired waveforms",
                         action="store_true")
 parser.add_argument("--loop", help="repeatedly save oscilloscope data",
                         action="store_true")
+parser.add_argument("--dir", type=str, default="data",
+                        help="relative path to save the data")
 opts = parser.parse_args()
 
 print("acquiring channels: {}".format(opts.channels))
@@ -29,7 +31,10 @@ if opts.plot:
 if opts.loop:
     print("continuously acquiring data")
 
-SAVEDIR = os.path.join(os.getcwd(),'data') # path to the directory to save files
+SAVEDIR = os.path.join(os.getcwd(),opts.dir) # path to the directory to save files
+if not os.path.exists(SAVEDIR):
+    os.makedirs(SAVEDIR)
+
 XUNIT = 's' # x-axis label
 YUNIT = {1:'potential,volts',2:'potential,volts',3:'potential,volts',4:'potential,volts'} # y-units for each channel
 
@@ -109,7 +114,6 @@ if __name__ == "__main__":
         instr.write(":WAVEFORM:SOURCE CHANNEL".format(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
         preambles[str(channel)] = preamble
-    print(preambles)
 
     while run:
         instr.write(":STOP")
