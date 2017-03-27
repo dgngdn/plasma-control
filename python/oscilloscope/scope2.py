@@ -106,7 +106,8 @@ if __name__ == "__main__":
     # save to a dictionary for future playing!
     preambles = {}
     for channel in CHANNELS: #opts.channels:
-        instr.write(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
+        print(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
+        instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
         preambles[str(channel)] = preamble
     print(preambles)
