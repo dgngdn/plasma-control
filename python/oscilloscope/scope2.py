@@ -15,19 +15,22 @@ import argparse
 import time
 
 parser = argparse.ArgumentParser(description="collect data from Rigol oscilloscope")
+parser.add_argument("--chan", nargs='+', help="<required> channels to acquire",
+                        action="store",dest="channels", required=True)
 parser.add_argument("--plot", help="plot the acquired waveforms",
                         action="store_true")
 parser.add_argument("--loop", help="repeatedly save oscilloscope data",
                         action="store_true")
+parser.add_argument("")
 args = parser.parse_args()
 if args.plot:
     print("plotting waveforms")
-if args.plot:
+if args.loop:
     print("continuously acquiring data")
 
 # list of the channels you want to measure
 SAVEDIR = os.path.join(os.getcwd(),'data') # path to the directory to save files in
-CHANNELS = [1,4] # the channel numbers on the oscilloscope to record
+##CHANNELS = [1,4] # the channel numbers on the oscilloscope to record
 XUNIT = 's' # x-axis label
 YUNIT = {1:'potential,volts',4:'potential,volts'} # y-units for each channel
 
@@ -102,7 +105,7 @@ if __name__ == "__main__":
     # for each channel, grab the preamble containing the oscilloscope scaling information
     # save to a dictionary for future playing!
     preambles = {}
-    for channel in CHANNELS:
+    for channel in args.channels:
         instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
         preambles[str(channel)] = preamble
@@ -111,7 +114,7 @@ if __name__ == "__main__":
         instr.write(":STOP")
         curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
         print("current time: {}".format(curtime))
-        for channel in CHANNELS:
+        for channel in args.channels:
             data = read_from_channel(channel,preambles[str(channel)])
             fname = "{}_chan{}".format(curtime,channel)
             if args.plot:
