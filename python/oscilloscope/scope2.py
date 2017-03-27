@@ -33,6 +33,7 @@ if opts.loop:
 
 SAVEDIR = os.path.join(os.getcwd(),opts.dir) # path to the directory to save files
 if not os.path.exists(SAVEDIR):
+    print("Creating directory: {}".format(SAVEDIR))
     os.makedirs(SAVEDIR)
 
 XUNIT = 's' # x-axis label
@@ -77,7 +78,7 @@ def plot_data(data,fname,ylabel):
     plt.close(fig)
 
 def save_data(data,fname):
-    print("saving {}.csv".format(fname))
+    print("saving {}.csv".format(os.path.join(SAVEDIR,fname)))
     np.savetxt(os.path.join(SAVEDIR,"{}.csv".format(fname)),data,delimiter=',')
 
 def generate_xdata(points,pre):
