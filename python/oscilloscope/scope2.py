@@ -124,7 +124,7 @@ if __name__ == "__main__":
             data = read_from_channel(channel,preambles[str(channel)])
             fname = "{}_chan{}".format(curtime,channel)
             if opts.plot:
-                ylabel = YUNIT[str(channel)]
+                ylabel = YUNIT[channel]
                 plot_data(data,fname,ylabel)
             save_data(data,fname)
         print("DONE.")
