@@ -14,9 +14,15 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser(description="collect data from Rigol oscilloscope")
-parser.add_argument('--plot', type=bool, default=False,
-                        help='whether to plot the acquired waveforms')
+parser.add_argument("--plot", help="plot the acquired waveforms",
+                        action="store_true")
+parser.add_argument("--loop", help="repeatedly save oscilloscope data",
+                        action="store_true")
 args = parser.parse_args()
+if args.plot:
+    print("plotting waveforms")
+if args.plot:
+    print("continuously acquiring data")
 
 # list of the channels you want to measure
 SAVEDIR = os.path.join(os.getcwd(),'data') # path to the directory to save files in
@@ -29,24 +35,19 @@ try:
     rm = visa.ResourceManager()
 except:
     rm = visa.ResourceManager('@py')
-# rm.list_resources()
+
 # create instrument object
+# rm.list_resources()
 #instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA164457681::INSTR') # chamber jet
 instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR') # control jet
-#instr = rm.open_resource('USB0::6833::1230::DS1ZA170603287::0::INSTR')
 #print("FAILED to open an instrument!")
 
 print("device info: {}".format(instr.query("*IDN?")))
-#instr.values_format.is_binary = False
-#instr.values_format.datatype = 'L' # I or L?
-#instr.values_format.is_big_endian = False
-#instr.values_format.container = np.array
 
 def read_from_channel(channel):
     """reads from specified oscilloscope channel;
        returns numpy array containing data"""
     instr.write(":WAVEFORM:SOURCE CHANNEL" + str(channel))
-    #data = instr.query_values(":WAVEFORM:DATA?")
     preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
     ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
     xdata = generate_xdata(len(ydata),preamble)
@@ -96,16 +97,21 @@ if __name__ == "__main__":
     wavscale = np.vectorize(scale_waveform, excluded=['pre'])
     instr.write(":WAVEFORM:MODE NORMAL")
     instr.write(":WAVEFORM:FORMAT ASCII")
-    instr.write(":STOP")
-    curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    print("current time: {}".format(curtime))
+    run = True
 
-    for channel in CHANNELS:
-        data = read_from_channel(channel)
-        fname = "{}_chan{}".format(curtime,channel)
-        if args.plot:
-            ylabel = YUNIT[channel]
-            plot_data(data,fname,ylabel)
-        save_data(data,fname)
-    print("DONE.")
-    instr.write(":RUN")
+    while run:
+        instr.write(":STOP")
+        curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        print("current time: {}".format(curtime))
+
+        for channel in CHANNELS:
+            data = read_from_channel(channel)
+            fname = "{}_chan{}".format(curtime,channel)
+            if args.plot:
+                ylabel = YUNIT[channel]
+                plot_data(data,fname,ylabel)
+            save_data(data,fname)
+        print("DONE.")
+        instr.write(":RUN")
+        time.sleep(0.1)
+        run = args.loop
