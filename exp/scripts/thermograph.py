@@ -28,7 +28,7 @@ if not os.path.exists(SAVEDIR):
     
 def save_data(data,fname):
   print("saving {}.csv".format(os.path.join(SAVEDIR,fname)))
-  np.savetxt(os.path.join(SAVEDIR,"{}.csv".format(fname)),data,delimiter=',')
+  np.savetxt(os.path.join(SAVEDIR,"{}.csv".format(fname)),data,delimiter=',',fmt='%.4e')
 
 if __name__ == "__main__":
   run = True
