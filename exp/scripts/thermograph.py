@@ -7,11 +7,11 @@ This script grabs data from the FLIR Lepton thermal camera and saves to a file
 """
 
 import os
-import subprocess
 import datetime
 import time
 import numpy as np
 import cv2
+import argparse
 from pylepton import Lepton
 
 parser = argparse.ArgumentParser(description="collect and log data from the FLIR Lepton thermal camera")
