@@ -31,7 +31,7 @@ if opts.plot:
 if opts.loop:
     print("continuously acquiring data")
 
-SAVEDIR = os.path.join(os.getcwd(),opts.dir) # path to the directory to save files
+SAVEDIR = os.path.join(os.getcwd(),opts.dir,"oscilloscope") # path to the directory to save files
 if not os.path.exists(SAVEDIR):
     print("Creating directory: {}".format(SAVEDIR))
     os.makedirs(SAVEDIR)
