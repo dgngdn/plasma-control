@@ -23,11 +23,12 @@ cwd = os.getcwd()
 LIBPATH = os.path.join(cwd,"lib")
 OOLIB = os.path.join(LIBPATH,"oceanoptics")
 
-parser = argparse.ArgumentParser(description="collect data from Ocean Optics spectrophotometer")
-parser.add_argument("--dir", type=str, default="data",
-                        help="relative path to save the data")
-parser.add_argument("--loop", help="repeatedly save oscilloscope data",
+parser = argparse.ArgumentParser(description="collects and logs data from Ocean Optics spectrophotometer",
+			epilog="Example: python spectroscopy.py --loop")
+parser.add_argument("--loop", help="continuously log data",
                         action="store_true")
+parser.add_argument("--dir", type=str, default="data",
+                        help="<optional> relative path to save the data")
 opts = parser.parse_args()
 
 SAVEDIR = os.path.join(os.getcwd(),opts.dir,"spectroscopy") # path to the directory to save files
