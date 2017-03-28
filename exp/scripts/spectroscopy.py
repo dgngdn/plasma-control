@@ -14,7 +14,19 @@ import matplotlib
 import argparse
 import datetime
 
-integrate_micros = 200000
+parser = argparse.ArgumentParser(description="collects and logs data from Ocean Optics spectrophotometer",
+			epilog="Example: python spectroscopy.py --loop")
+parser.add_argument("--loop", help="continuously log data",
+                        action="store_true")
+parser.add_argument("--dir", type=str, default="data",
+                        help="<optional> relative path to save the data")
+parser.add_argument("--autoscale", action="store_true",
+			help="autoscale the integration time")
+parser.add_argument("--integrate", type=int, default="200000",
+                        help="integration time in microseconds (default: 200,000)")
+opts = parser.parse_args()
+
+integrate_micros = opts.integrate
 PEAKABSMAX = 65535
 PEAKMAX = PEAKABSMAX / 4
 PEAKMIN = PEAKABSMAX / 10
@@ -23,13 +35,7 @@ cwd = os.getcwd()
 LIBPATH = os.path.join(cwd,"lib")
 OOLIB = os.path.join(LIBPATH,"oceanoptics")
 
-parser = argparse.ArgumentParser(description="collects and logs data from Ocean Optics spectrophotometer",
-			epilog="Example: python spectroscopy.py --loop")
-parser.add_argument("--loop", help="continuously log data",
-                        action="store_true")
-parser.add_argument("--dir", type=str, default="data",
-                        help="<optional> relative path to save the data")
-opts = parser.parse_args()
+
 
 SAVEDIR = os.path.join(os.getcwd(),opts.dir,"spectroscopy") # path to the directory to save files
 if not os.path.exists(SAVEDIR):
@@ -62,10 +68,11 @@ if __name__ == "__main__":
     curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
     fname = "{}-{}.csv".format(curtime,integrate_micros)
     np.savetxt(os.path.join(SAVEDIR,fname),spectrum,delimiter=',')
-
-    # modify integration time as needed
     peak = np.max(spectrum[10:,1])
     print_stats(integrate_micros,peak)
-    integrate_micros = set_integrate(integrate_micros,peak)
+
+    # modify integration time
+    if opts.autoscale:
+        integrate_micros = set_integrate(integrate_micros,peak)
     run = opts.loop
 
