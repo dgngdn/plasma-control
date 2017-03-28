@@ -57,7 +57,9 @@ def read_from_channel(channel,preamble):
     """reads from specified oscilloscope channel;
        returns numpy array containing scaled (x,y) data"""
     instr.write(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
-    ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
+    ydata = []
+    while len(ydata) == 0:
+        ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
     xdata = generate_xdata(len(ydata),preamble)
     yscaled = wavscale(measured=ydata,pre=preamble)
     data = np.array(zip(xdata,yscaled), dtype=[('x',float),('y',float)])

@@ -1,6 +1,9 @@
-#!/bin/env python
+#!/usr/bin/env python
 
-"""Collects and saves data from the Ocean Optics spectrometer
+"""
+Optical Emission Spectroscopy Interface
+
+Collects and saves data from the Ocean Optics spectrometer
 """
 
 from __future__ import division
