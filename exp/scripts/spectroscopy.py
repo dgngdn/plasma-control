@@ -47,7 +47,7 @@ if __name__ == "__main__":
   run = True
 
   while run:
-    p = subprocess.Popen([os.path.join(cwd,"spectroscopy-util"),"--get-spectrum","--integration-time-us",
+    p = subprocess.Popen([os.path.join(cwd,"oceanoptics-util"),"--get-spectrum","--integration-time-us",
                                           str(integrate_micros)],cwd=cwd,env={"LD_LIBRARY_PATH": OOLIB},
                                           stdout=subprocess.PIPE)
     p.wait()
