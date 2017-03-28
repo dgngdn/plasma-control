@@ -38,6 +38,18 @@ default in the Raspberry Pi Ubuntu Mate image, so you must acquire the source an
 + http://alexforencich.com/wiki/en/python-usbtmc/readme
 
 
+## Installing the Kernel Module to Load On Boot
+
++ https://askubuntu.com/questions/299676/how-to-install-3rd-party-module-so-that-it-is-loaded-on-boot
+
+    Edit the /etc/modules file and add the name of the module (without the .ko extension) on its own line.
+    On boot the kernel will try to load all the modules named in this file.
+    Copy the module to a suitable folder in /lib/modules/`uname -r`/kernel/drivers
+    Run `sudo depmod`
+    Reboot
+    Run `lsmod | grep <module-name>` to confirm that the module was loaded on boot
+
+
 ## how-to for usbtmc-python
 
 http://scruss.com/blog/2013/12/15/my-raspberry-pi-talks-to-my-oscilloscope/
