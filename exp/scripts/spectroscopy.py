@@ -53,6 +53,10 @@ def set_integrate(itime,peak):
 def print_stats(integrate_micros, peak):
   print("integration time: {} us; maxpeak: {}".format(integrate_micros,peak))
 
+def save_data(data,fname):
+  print("saving {}.csv".format(os.path.join(SAVEDIR,fname)))
+  np.savetxt(os.path.join(SAVEDIR,"{}.csv".format(fname)),data,delimiter=',',fmt='%.5e')
+
 if __name__ == "__main__":
   run = True
 
@@ -62,13 +66,13 @@ if __name__ == "__main__":
                                           stdout=subprocess.PIPE)
     p.wait()
     data,err = p.communicate()
-    spectrum = np.array([e.split(',') for e in data.splitlines()],dtype=float)
+    data = np.array([e.split(',') for e in data.splitlines()],dtype=float)
 
     # save the spectrum to a csv file, timestamped with the integration time
     curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
-    fname = "{}-{}.csv".format(curtime,integrate_micros)
-    np.savetxt(os.path.join(SAVEDIR,fname),spectrum,delimiter=',')
-    peak = np.max(spectrum[10:,1])
+    fname = "{}-{}".format(curtime,integrate_micros)
+    save_data(data,fname)
+    peak = np.max(data[10:,1])
     print_stats(integrate_micros,peak)
 
     # modify integration time
