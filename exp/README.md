@@ -13,20 +13,26 @@ Folders:
 ## Status
 
 + oscilloscope.py
-  + TESTED
+  + TESTED - totally usable
   + environment: `workon science`
   + occasionally crashed by uncaught hardware read errors
   + takes cmdline arguments; uses argparse to auto-generate help
   + saves timestamped csv files in specified folder in a loop
 + spectroscopy.py
-  + TESTED
+  + TESTED - totally usable
   + environment: `workon science`
   + scales integration time to keep maximum measured values within a specified range
   + cmdline arguments; uses argparse to auto-generate help
   + saves timestamped csv files in specified folder in a loop
   + filename has the integration time appended for normalization
 + thermography.py
-  + 
+  + TESTED
+  + adapted from exp.py from the thermography development directory
+  + completely rewritten to follow standards used in other scripts
+  + environment: `deactivate` - system Python!
+  + cmdline arguments: --loop --dir
+  + captures thermographs every ~1.1s
+  + saves data into timestamped files in a specified directory
 
 
 
