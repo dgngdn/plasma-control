@@ -56,7 +56,7 @@ print("device info: {}".format(instr.query("*IDN?")))
 def read_from_channel(channel,preamble):
     """reads from specified oscilloscope channel;
        returns numpy array containing scaled (x,y) data"""
-    instr.write(":WAVEFORM:SOURCE CHANNEL".format(channel))
+    instr.write(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
     ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
     xdata = generate_xdata(len(ydata),preamble)
     yscaled = wavscale(measured=ydata,pre=preamble)
@@ -111,11 +111,11 @@ if __name__ == "__main__":
     # save to a dictionary for future playing!
     preambles = {}
     instr.write(":RUN")
+    time.sleep(0.1)
     for channel in opts.channels:
         instr.write(":WAVEFORM:SOURCE CHANNEL".format(channel))
         preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
         preambles[str(channel)] = preamble
-
     while run:
         instr.write(":STOP")
         curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
