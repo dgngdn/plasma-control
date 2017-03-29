@@ -26,3 +26,47 @@ Traceback (most recent call last):
     assert msgid == MsgID.dev_dep_msg_in
 AssertionError
 
+
+This bug report has been filed:
+
+usbtmc assertion failure
+https://github.com/hgrecco/pyvisa-py/issues/20
+
+----
+
+Rigol firmware
+http://beyondmeasure.rigoltech.com/acton/fs/blocks/showLandingPage/a/1579/p/p-0019/t/page/fm/0
+
+DSRemote, someone's remote visualiation software:
+http://www.teuniz.net/DSRemote/
+(no idea how it works)
+
+
+----
+
+
+http://www.eevblog.com/forum/testgear/rigol-usbtmcvisa-interface-is-really-terrible/
+
+http://www.teuniz.net/DSRemote/
+They note the kernel patch needed.
+
+I had to change the MTU size to avoid the TCP/IP packets from being split making it too slow.
+
+"This is what helped: Upgrading from 00.04.03.00.01 (2015-05-05) to 00.04.03.01.05 (2015-06-16). That made USBTMC finally working with my Linux machine!  *update*:  and for the record: all this is with the unmodified usbtmc.c kernel module shipping with the current kernel version 4.1."
+
+"Just a note of caution, if you are thinking of upgrading to firmware 00.04.03.02.03:
+
+I had been struggling to get USBTMC to work with my DS1000Z, then I upgraded to firmware 00.04.03.01.05 and all the problems went away :)  However, today I upgraded to 00.04.03.02.03 and the USBTMC is broken again :(  Simple commands still work but not fetching waveform data from memory. I am using Alex Forencich's Python USBTMC library."
+
+response: "I guess there's something wrong with that python lib. Here it works fine with usbtmc and latest firmware."
+
+----
+
+Is there a way to set the timeout on pyvisa instrument objects?
+  YES
+  my_device.timeout = 25000 # 25 seconds
+Is there a way to change the data chunk size?
+  YES
+  my_instrument.chunk_size = 102400 # 100kB
+
+

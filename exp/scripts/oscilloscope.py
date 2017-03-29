@@ -129,8 +129,8 @@ if __name__ == "__main__":
             if opts.plot:
                 ylabel = YUNIT[channel]
                 plot_data(data,fname,ylabel)
-            save_data(data,fname)
+            #save_data(data,fname)
         print("DONE.")
         instr.write(":RUN")
-        time.sleep(0.1)
+        time.sleep(0.15)
         run = opts.loop
