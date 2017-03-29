@@ -25,7 +25,7 @@ SAVEDIR = os.path.join(os.getcwd(),opts.dir,"thermography") # path to the direct
 if not os.path.exists(SAVEDIR):
   print("Creating directory: {}".format(SAVEDIR))
   os.makedirs(SAVEDIR)
-    
+
 def save_data(data,fname):
   print("saving {}.csv".format(os.path.join(SAVEDIR,fname)))
   np.savetxt(os.path.join(SAVEDIR,"{}.csv".format(fname)),data,delimiter=',',fmt='%.4e')
