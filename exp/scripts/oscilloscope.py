@@ -14,23 +14,25 @@ import os
 import argparse
 import time
 
-parser = argparse.ArgumentParser(description="collects and logs data from the Rigol oscilloscope",
-			epilog="Example: python oscilloscope.py --chan 1 4 --loop")
-parser.add_argument("--chan", nargs='+', type=int, help="<required> oscillocope channels to acquire",
-                        action="store",dest="channels", required=True)
-parser.add_argument("--plot", help="plot the acquired waveforms as they are collected",
-                        action="store_true")
-parser.add_argument("--loop", help="continuously log data",
-                        action="store_true")
-parser.add_argument("--dir", type=str, default="data",
-                        help="<optional> relative path to save the data")
-opts = parser.parse_args()
-print_opts(opts)
-
 XUNIT = 's' # x-axis label
 YUNIT = {1:'potential,volts',2:'potential,volts',3:'potential,volts',4:'potential,volts'} # y-units for each channel
 instr = get_oscilloscope('visa')
 SAVEDIR = savedir_setup(opts.dir)
+
+def get_opts():
+    parser = argparse.ArgumentParser(description="collects and logs data from the Rigol oscilloscope",
+			    epilog="Example: python oscilloscope.py --chan 1 4 --loop")
+    parser.add_argument("--chan", nargs='+', type=int, help="<required> oscillocope channels to acquire",
+                            action="store",dest="channels", required=True)
+    parser.add_argument("--plot", help="plot the acquired waveforms as they are collected",
+                            action="store_true")
+    parser.add_argument("--loop", help="continuously log data",
+                            action="store_true")
+    parser.add_argument("--dir", type=str, default="data",
+                            help="<optional> relative path to save the data")
+    opts = parser.parse_args()
+    print_opts(opts)
+    return opts
 
 def print_opts(opts):
     print("acquiring channels: {}".format(opts.channels))
@@ -41,7 +43,7 @@ def print_opts(opts):
 
 def savedir_setup(directory):
     # path to the directory to save files
-    savedir = os.path.join(os.getcwd(),opts.dir,"oscilloscope") 
+    savedir = os.path.join(os.getcwd(),directory,"oscilloscope") 
     if not os.path.exists(savedir):
         print("Creating directory: {}".format(savedir))
         os.makedirs(savedir)
@@ -117,6 +119,7 @@ def wave_clean(s):
     return filter(None, s[11:].split('\n')[0].split(','))
 
 if __name__ == "__main__":
+    opts = get_opts()
     wavscale = np.vectorize(scale_waveform, excluded=['pre'])
     instr.write(":WAVEFORM:MODE NORMAL")
     instr.write(":WAVEFORM:FORMAT ASCII")
