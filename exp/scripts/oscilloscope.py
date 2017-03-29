@@ -16,8 +16,6 @@ import time
 
 XUNIT = 's' # x-axis label
 YUNIT = {1:'potential,volts',2:'potential,volts',3:'potential,volts',4:'potential,volts'} # y-units for each channel
-instr = get_oscilloscope('visa')
-SAVEDIR = savedir_setup(opts.dir)
 
 def get_opts():
     parser = argparse.ArgumentParser(description="collects and logs data from the Rigol oscilloscope",
@@ -68,7 +66,7 @@ def get_oscilloscope(platform):
     print("device chunk size: {}".format(instr.chunk_size))
     return instr
 
-def read_from_channel(channel,preamble):
+def read_from_channel(instr,channel,preamble):
     """reads from specified oscilloscope channel;
        returns numpy array containing scaled (x,y) data"""
     instr.write(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
@@ -80,7 +78,7 @@ def read_from_channel(channel,preamble):
     data = np.array(zip(xdata,yscaled), dtype=[('x',float),('y',float)])
     return data
 
-def plot_data(data,fname,ylabel):
+def plot_data(data,ylabel,fname,savedir):
     print("plotting {}.png".format(fname))
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
@@ -90,13 +88,13 @@ def plot_data(data,fname,ylabel):
     ax.set_xlabel("time, {}".format(XUNIT))
     ax.grid(True)
     ax.get_xaxis().get_major_formatter().set_powerlimits((0, 0))
-    fig.savefig(os.path.join(SAVEDIR,"{}.png".format(fname)),dpi=300)
+    fig.savefig(os.path.join(savedir,"{}.png".format(fname)),dpi=300)
     plt.show()
     plt.close(fig)
 
-def save_data(data,fname):
-    print("saving {}.csv".format(os.path.join(SAVEDIR,fname)))
-    np.savetxt(os.path.join(SAVEDIR,"{}.csv".format(fname)),data,delimiter=',',fmt='%.5e')
+def save_data(data,fname,savedir):
+    print("saving {}.csv".format(os.path.join(savedir,fname)))
+    np.savetxt(os.path.join(savedir,"{}.csv".format(fname)),data,delimiter=',',fmt='%.5e')
 
 def generate_xdata(points,pre):
     xincr = pre[4]
@@ -120,6 +118,9 @@ def wave_clean(s):
 
 if __name__ == "__main__":
     opts = get_opts()
+    instr = get_oscilloscope('visa')
+    savedir = savedir_setup(opts.dir)
+    
     wavscale = np.vectorize(scale_waveform, excluded=['pre'])
     instr.write(":WAVEFORM:MODE NORMAL")
     instr.write(":WAVEFORM:FORMAT ASCII")
@@ -139,12 +140,12 @@ if __name__ == "__main__":
         curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
         print("current time: {}".format(curtime))
         for channel in opts.channels:
-            data = read_from_channel(channel,preambles[str(channel)])
+            data = read_from_channel(instr,channel,preambles[str(channel)])
             fname = "{}_chan{}".format(curtime,channel)
             if opts.plot:
                 ylabel = YUNIT[channel]
-                plot_data(data,fname,ylabel)
-            save_data(data,fname)
+                plot_data(data,ylabel,fname,savedir)
+            save_data(data,fname,savedir)
         print("DONE.")
         instr.write(":RUN")
         time.sleep(0.15)
