@@ -49,10 +49,14 @@ except:
 # create instrument object
 # rm.list_resources()
 #instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA164457681::INSTR') # chamber jet
-instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR') # control jet
+instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR', timeout=2000, chunk_size=102400) # control jet
+#instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR') # control jet
 #print("FAILED to open an instrument!")
-
+#instr.timeout = 2000
+#instr.chunk_size = 102400
 print("device info: {}".format(instr.query("*IDN?")))
+print("device timeout: {}".format(instr.timeout))
+print("device chunk size: {}".format(instr.chunk_size))
 
 def read_from_channel(channel,preamble):
     """reads from specified oscilloscope channel;
@@ -121,7 +125,7 @@ if __name__ == "__main__":
         preambles[str(channel)] = preamble
     while run:
         instr.write(":STOP")
-        curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
+        curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
         print("current time: {}".format(curtime))
         for channel in opts.channels:
             data = read_from_channel(channel,preambles[str(channel)])
@@ -129,7 +133,7 @@ if __name__ == "__main__":
             if opts.plot:
                 ylabel = YUNIT[channel]
                 plot_data(data,fname,ylabel)
-            #save_data(data,fname)
+            save_data(data,fname)
         print("DONE.")
         instr.write(":RUN")
         time.sleep(0.15)
