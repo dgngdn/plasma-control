@@ -39,7 +39,7 @@ if __name__ == "__main__":
       l = len(line)
       if (l != 80):
         print("error: should be 80 columns, but we got {}".format(l))
-    curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
+    curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
     fname = "{}".format(curtime)
     save_data(data,fname)
     time.sleep(0.1)

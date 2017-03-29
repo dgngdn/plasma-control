@@ -25,38 +25,46 @@ parser.add_argument("--loop", help="continuously log data",
 parser.add_argument("--dir", type=str, default="data",
                         help="<optional> relative path to save the data")
 opts = parser.parse_args()
-
-print("acquiring channels: {}".format(opts.channels))
-if opts.plot:
-    print("plotting waveforms")
-if opts.loop:
-    print("continuously acquiring data")
-
-SAVEDIR = os.path.join(os.getcwd(),opts.dir,"oscilloscope") # path to the directory to save files
-if not os.path.exists(SAVEDIR):
-    print("Creating directory: {}".format(SAVEDIR))
-    os.makedirs(SAVEDIR)
+print_opts(opts)
 
 XUNIT = 's' # x-axis label
 YUNIT = {1:'potential,volts',2:'potential,volts',3:'potential,volts',4:'potential,volts'} # y-units for each channel
+instr = get_oscilloscope('visa')
+SAVEDIR = savedir_setup(opts.dir)
 
-# create device manager object
-try:
-    rm = visa.ResourceManager()
-except:
-    rm = visa.ResourceManager('@py')
+def print_opts(opts):
+    print("acquiring channels: {}".format(opts.channels))
+    if opts.plot:
+        print("plotting waveforms")
+    if opts.loop:
+        print("continuously acquiring data")
 
-# create instrument object
-# rm.list_resources()
-#instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA164457681::INSTR') # chamber jet
-instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR', timeout=2000, chunk_size=102400) # control jet
-#instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR') # control jet
-#print("FAILED to open an instrument!")
-#instr.timeout = 2000
-#instr.chunk_size = 102400
-print("device info: {}".format(instr.query("*IDN?")))
-print("device timeout: {}".format(instr.timeout))
-print("device chunk size: {}".format(instr.chunk_size))
+def savedir_setup(directory):
+    # path to the directory to save files
+    savedir = os.path.join(os.getcwd(),opts.dir,"oscilloscope") 
+    if not os.path.exists(savedir):
+        print("Creating directory: {}".format(savedir))
+        os.makedirs(savedir)
+    return savedir
+
+def get_oscilloscope(platform):
+    # create device manager object
+    try:
+        rm = visa.ResourceManager()
+    except:
+        rm = visa.ResourceManager('@py')
+    # create instrument object
+    # rm.list_resources()
+    
+    # chamber jet
+    #instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA164457681::INSTR')
+    # control jet
+    instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR',
+                          timeout=2000, chunk_size=102400)
+    print("device info: {}".format(instr.query("*IDN?")))
+    print("device timeout: {}".format(instr.timeout))
+    print("device chunk size: {}".format(instr.chunk_size))
+    return instr
 
 def read_from_channel(channel,preamble):
     """reads from specified oscilloscope channel;
