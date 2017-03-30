@@ -48,22 +48,25 @@ def savedir_setup(directory):
     return savedir
 
 def get_oscilloscope(platform):
-    # create device manager object
-    try:
-        rm = visa.ResourceManager()
-    except:
-        rm = visa.ResourceManager('@py')
-    # create instrument object
-    # rm.list_resources()
-    
-    # chamber jet
-    #instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA164457681::INSTR')
-    # control jet
-    instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR',
-                          timeout=2000, chunk_size=102400)
-    print("device info: {}".format(instr.query("*IDN?")))
-    print("device timeout: {}".format(instr.timeout))
-    print("device chunk size: {}".format(instr.chunk_size))
+    if platform == 'visa':
+        # create device manager object
+        try:
+            rm = visa.ResourceManager()
+        except:
+            rm = visa.ResourceManager('@py')
+        # create instrument object
+        # rm.list_resources()
+        
+        # chamber jet
+        #instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA164457681::INSTR')
+        # control jet
+        instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR',
+                              timeout=2000, chunk_size=102400)
+        print("device info: {}".format(instr.query("*IDN?")))
+        print("device timeout: {}".format(instr.timeout))
+        print("device chunk size: {}".format(instr.chunk_size))
+    else:
+        pass
     return instr
 
 def read_from_channel(instr,channel,preamble):

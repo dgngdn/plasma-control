@@ -26,13 +26,38 @@ https://pyvisa.readthedocs.io/en/stable/
 
 ## python-usbtmc
 
->>> import usbtmc
->>> i = usbtmc.Instrument(0x0957, 0x2007)
->>> i.ask('*IDN?')
+https://github.com/python-ivi/python-usbtmc/
+http://alexforencich.com/wiki/en/python-usbtmc/start
+
+
+`pip install pyusb python-usbtmc`
+
+import numpy as np
+import usbtmc
+import time
+
+i = usbtmc.Instrument(0x1ab1, 0x04ce)
+time.sleep(1)
+i.timeout = 1.0 # this is in SECONDS
+i.rigol_quirk_ieee_block = False
+i.ask('*IDN?')
+vars(i)
+i.write(":WAV:CHAN1")
+i.write(":WAV:DATA?")
+a = np.fromstring(i.read_raw()[11:],dtype=float,sep=',')
+
+i.write(":RUN")
+i.ask(":TRIGGER:STATUS?")
+i.write(":STOP")
+i.ask(":TRIGGER:STATUS?")
+
+
 
 It has some code to deal with the "Rigol quirk":
 
     RIGOL_QUIRK_PIDS = [0x04ce, 0x0588]
+    
+The 0x04ce (DS1000Z) device also has self.rigol_quirk_ieee_block = True, which has been fixed in the newest firmware (00.04.03.02.03); set this to False to get python-usbtmc working again.
 
 
 ## usbtmc.c
@@ -59,6 +84,15 @@ It also has some code to deal with the "Rigol quirk":
 http://www.rigol.eu/products/digital-oscilloscopes/ds1000z/
 
 
+
+## Raw File Read/Write with Linux usbtmc.ko kernel module
+
+import os
+device = os.open("/dev/usbtmc0",os.O_RDWR)
+
+while True:
+    os.write(device,":WAV:DATA?")
+    os.read(device,4000)
 
 
 
