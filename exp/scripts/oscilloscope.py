@@ -56,7 +56,6 @@ def get_oscilloscope(platform):
             rm = visa.ResourceManager('@py')
         # create instrument object
         # rm.list_resources()
-        
         # chamber jet
         #instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA164457681::INSTR')
         # control jet
