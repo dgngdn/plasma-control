@@ -77,16 +77,14 @@ def get_oscilloscope(platform):
 	setopts = False # opts are sent when the device is OPENED
         while not setopts:
             instr.timeout = 1.0
-            instr.rigol_quirk_ieee_block = False
-            instr.rigol_quirk = False
-            setopts = (instr.timeout == 1 and instr.rigol_quirk_ieee_block == False and instr.rigol_quirk == False)
+	    instr.rigol_quirk_ieee_block = False
+            setopts = (instr.timeout == 1 and instr.rigol_quirk_ieee_block == False)
         while not id:
             try:
                 id = instr.ask("*IDN?")
             except Exception as e: # USBError
                 print(e)
-                while True:
-                    time.sleep(1)
+                time.sleep(1)
 	print("device info: {}".format(id))
         print("device timeout: {}".format(instr.timeout))
     return instr
@@ -101,23 +99,13 @@ def read_from_channel(instr,platform,channel,preamble):
         if platform == 'visa':
             ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
         else:
-            gotdata = False
-            while not gotdata:
-                instr.write(":WAV:DATA?")
-                time.sleep(READWAIT)
-                try:
-                    rawdata = instr.read_raw()
-                    gotdata = True
-                except Exception as e:
-                    print(e)
-                    instr.close()
-                    time.sleep(5)
-                    capture_oscilloscope()
-                    pass
+            instr.write(":WAV:DATA?")
+            time.sleep(READWAIT)
+            rawdata = instr.read_raw()
             ydata = np.fromstring(rawdata[11:],dtype=float,sep=',')
-            #print(len(ydata))
+            print(len(ydata))
     xdata = generate_xdata(len(ydata),preamble)
-    yscaled = ydata #wavscale(measured=ydata,pre=preamble)
+    yscaled = wavscale(measured=ydata,pre=preamble)
     data = np.array(zip(xdata,yscaled), dtype=[('x',float),('y',float)])
     return data
 
@@ -146,12 +134,12 @@ def generate_xdata(points,pre):
     x = np.linspace(xorig,xincr*points,points)
     return x
 
-#def scale_waveform(measured,pre):
-#    yincr = pre[7]
-#    yorig = pre[8]
-#    yref = pre[9]
-#    scaled = (measured - yorig - yref) * yincr
-#    return measured
+def scale_waveform(measured,pre):
+    yincr = pre[7]
+    yorig = pre[8]
+    yref = pre[9]
+    scaled = (measured - yorig - yref) * yincr
+    return measured
 
 def preamble_clean(s):
     return filter(None, s.split('\n')[0].split(','))
@@ -169,28 +157,17 @@ def instr_query(instrument, platform, msg):
 def instr_run(instrument, platform):
     setrun = False
     while not setrun:
-        instrument.write(":RUN")
+        instr.write(":RUN")
         status = instr_query(instrument, platform, "TRIGGER:STATUS?").strip()
         setrun = (status != "STOP")
         time.sleep(0.1)
 
-def instr_reset(instrument, platform):
-    print("Resetting instrument...")
-    instrument.close()
-    time.sleep(1)
-    instrument.open()
-    time.sleep(1)
-    instrument.timeout = 1.0
-    instrument.rigol_quirk_ieee_block = False
-    instrument.rigol_quirk = False
-    print("Reset: {}".format(instrument.ask("*IDN?")))
-
-def capture_oscilloscope():
+if __name__ == "__main__":
     opts = get_opts()
     instr = get_oscilloscope(opts.platform)
     savedir = savedir_setup(opts.dir)
 
-    #wavscale = np.vectorize(scale_waveform, excluded=['pre'])
+    wavscale = np.vectorize(scale_waveform, excluded=['pre'])
     instr.write(":WAVEFORM:MODE NORMAL")
     instr.write(":WAVEFORM:FORMAT ASCII")
     instr_run(instr, opts.platform)
@@ -227,7 +204,3 @@ def capture_oscilloscope():
 
         instr_run(instr, opts.platform)
         run = opts.loop
-
-if __name__ == "__main__":
-    capture_oscilloscope()
-
