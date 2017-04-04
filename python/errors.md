@@ -1,4 +1,29 @@
 
+
+
+
+
+
+
+
+
+
+
+
+## python-usbtmc errors
+
+usb.core.USBError
+
+
+
+
+
+
+
+
+
+
+
 ## oscilloscope.py
 
 Traceback (most recent call last):
@@ -134,5 +159,86 @@ unplug and replug:
 [31301.791153] usb 1-1.4: SerialNumber: DS1ZA170603287
 
 now `/dev/usbtmc0` appears!
+
+
+
+
+## 2017-04-03
+
+    [Errno 110] Operation timed out
+    Resetting instrument...
+    Traceback (most recent call last):
+      File "oscilloscope.py", line 214, in <module>
+        data = read_from_channel(instr,opts.platform,channel,preambles[str(channel)])
+      File "oscilloscope.py", line 111, in read_from_channel
+        instr_reset(instr,'usbtmc')
+      File "oscilloscope.py", line 179, in instr_reset
+        print("Reset: {}".format(instrument.ask("*IDN?")))
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usbtmc/usbtmc.py", line 630, in ask
+        return self.read(num, encoding)
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usbtmc/usbtmc.py", line 613, in read
+        return self.read_raw(num).decode(encoding).rstrip('\r\n')
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usbtmc/usbtmc.py", line 542, in read_raw
+        msgid, btag, btaginverse, transfer_size, transfer_attributes, data = self.unpack_dev_dep_resp_header(resp) 
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usbtmc/usbtmc.py", line 467, in unpack_dev_dep_resp_header
+        transfer_size, transfer_attributes = struct.unpack_from('<LBxxx', data, 4)
+    struct.error: unpack_from requires a buffer of at least 8 bytes
+
+
+
+      def unpack_dev_dep_resp_header(self, data):
+          msgid, btag, btaginverse = self.unpack_bulk_in_header(data)
+          transfer_size, transfer_attributes = struct.unpack_from('<LBxxx', data, 4)
+          data = data[USBTMC_HEADER_SIZE:transfer_size+USBTMC_HEADER_SIZE]
+          return (msgid, btag, btaginverse, transfer_size, transfer_attributes, data)
+
+sooo.... I changed the 4 to an 8! ...okay that broke everything.
+
+stuff is clearly still broken, so now I'm disabled rigol_quirk and seeing how that goes!
+
+LUCKY GUESS.  The calls to unpack_dev_dep_resp_header are found in the rigol_quirk conditional blocks!
+
+now we get a slightly different error:
+
+    [Errno 110] Operation timed out
+    Resetting instrument...
+    Traceback (most recent call last):
+      File "oscilloscope.py", line 224, in <module>
+        data = read_from_channel(instr,opts.platform,channel,preambles[str(channel)])
+      File "oscilloscope.py", line 118, in read_from_channel
+        instr_reset(instr,'usbtmc')
+      File "oscilloscope.py", line 189, in instr_reset
+        print("Reset: {}".format(instrument.ask("*IDN?")))
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usbtmc/usbtmc.py", line 630, in ask
+        return self.read(num, encoding)
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usbtmc/usbtmc.py", line 613, in read
+        return self.read_raw(num).decode(encoding).rstrip('\r\n')
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usbtmc/usbtmc.py", line 532, in read_raw
+        resp = self.bulk_in_ep.read(read_len+USBTMC_HEADER_SIZE+3, timeout=int(self.timeout*1000))
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usb/core.py", line 402, in read
+        return self.device.read(self, size_or_buffer, timeout)
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usb/core.py", line 988, in read
+        self.__get_timeout(timeout))
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usb/_debug.py", line 60, in do_trace
+        return f(*args, **named_args)
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usb/backend/libusb1.py", line 833, in bulk_read
+        timeout)
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usb/backend/libusb1.py", line 936, in __read
+        _check(retval)
+      File "/home/brandon/dev/science/local/lib/python2.7/site-packages/usb/backend/libusb1.py", line 595, in _check
+        raise USBError(_strerror(ret), ret, _libusb_errno[ret])
+    usb.core.USBError: [Errno 110] Operation timed out
+
+
+
+
+
+
+
+
+
+
+
+
 
 
