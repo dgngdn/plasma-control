@@ -103,10 +103,12 @@ def read_from_channel(instr,platform,channel,preamble):
                     rawdata = instr.ask(":WAV:DATA?")
                 except Exception as e:
                     print("{} in read_from_channel".format(e))
+                    #read_from_channel(instr,platform,channel,preamble)
+                    #capture_oscilloscope()
                     instr.write(":RUN")
                     time.sleep(0.1)
                     instr.write(":STOP")
-                    break
+                    #break
             ydata = np.fromstring(rawdata[11:],dtype=float,sep=',')
     xdata = generate_xdata(len(ydata),preamble)
     yscaled = ydata #wavscale(measured=ydata,pre=preamble)
