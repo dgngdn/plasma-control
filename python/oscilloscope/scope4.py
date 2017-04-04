@@ -15,7 +15,8 @@ import argparse
 import usbtmc
 import visa
 
-DATASIZE = 1200
+TIMEOUT = 0.5
+DATALENGTH = 16000
 READWAIT = 0.150 # wait time between oscilloscope read and write, seconds
 XUNIT = 's' # x-axis label
 YUNIT = {1:'potential,volts',2:'potential,volts',3:'potential,volts',4:'potential,volts'} # y-units for each channel
@@ -66,58 +67,50 @@ def get_oscilloscope(platform):
         # instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA164457681::INSTR')
         # control jet
         instr = rm.open_resource('USB0::0x1AB1::0x04CE::DS1ZA170603287::INSTR',
-                              timeout=2000, chunk_size=102400)
+                                    timeout=2000, chunk_size=102400)
         print("device info: {}".format(instr.query("*IDN?")))
         print("device timeout: {}".format(instr.timeout))
         print("device chunk size: {}".format(instr.chunk_size))
     else:
         instr = usbtmc.Instrument(0x1ab1, 0x04ce)
         instr.open()
-        id = ''
-	setopts = False # opts are sent when the device is OPENED
-        while not setopts:
-            instr.timeout = 1.0
-            instr.rigol_quirk_ieee_block = False
+        while not (instr.timeout == TIMEOUT and instr.rigol_quirk == False):
+            instr.timeout = TIMEOUT
             instr.rigol_quirk = False
-            setopts = (instr.timeout == 1 and instr.rigol_quirk_ieee_block == False and instr.rigol_quirk == False)
+        id = ''
         while not id:
             try:
                 id = instr.ask("*IDN?")
             except Exception as e: # USBError
-                print(e)
+                print("{} in get_oscilloscope".format(e))
                 time.sleep(1)
-	print("device info: {}".format(id))
+        print("device info: {}".format(id))
         print("device timeout: {}".format(instr.timeout))
     return instr
 
 def read_from_channel(instr,platform,channel,preamble):
     """reads from specified oscilloscope channel;
        returns numpy array containing scaled (x,y) data"""
-    instr.write(":WAVEFORM:SOURCE CHANNEL{}".format(channel))
+    instr.write(":WAV:SOUR CHAN{}".format(channel))
     ydata = []
-    time.sleep(READWAIT)
     while len(ydata) < 1200:
         if platform == 'visa':
-            ydata = instr.query_ascii_values(":WAVEFORM:DATA?",separator=wave_clean,container=np.array)
+            ydata = instr.query_ascii_values(":WAV:DATA?",separator=wave_clean,container=np.array)
         else:
-            gotdata = False
-            while not gotdata:
-                instr.write(":WAV:DATA?")
-                time.sleep(READWAIT)
+            rawdata = ''
+            while len(rawdata) < DATALENGTH:
                 try:
-                    rawdata = instr.read_raw()
-                    gotdata = True
+                    rawdata = instr.ask(":WAV:DATA?")
                 except Exception as e:
-                    print(e)
-                    instr.close()
-                    time.sleep(5)
-                    capture_oscilloscope()
-                    pass
+                    print("{} in read_from_channel".format(e))
+                    instr.write(":RUN")
+                    time.sleep(0.1)
+                    instr.write(":STOP")
+                    break
             ydata = np.fromstring(rawdata[11:],dtype=float,sep=',')
-            #print(len(ydata))
     xdata = generate_xdata(len(ydata),preamble)
     yscaled = ydata #wavscale(measured=ydata,pre=preamble)
-    data = np.array(zip(xdata,yscaled), dtype=[('x',float),('y',float)])
+    data = np.array(list(zip(xdata,yscaled)), dtype=[('x',float),('y',float)])
     return data
 
 def plot_data(data,ylabel,fname,savedir):
@@ -159,30 +152,25 @@ def wave_clean(s):
     return filter(None, s[11:].split('\n')[0].split(','))
 
 def instr_query(instrument, platform, msg):
-    if platform == "visa":
-        reply = instrument.query(msg)
-    else:
-        reply = instrument.ask(msg)
+    time.sleep(0.15)
+    reply = ''
+    while not reply:
+        if platform == "visa":
+            reply = instrument.query(msg)
+        else:
+            try:
+                reply = instrument.ask(msg)
+            except Exception as e:
+                print("{} in instr_query".format(e))
+                time.sleep(1)
     return reply
 
 def instr_run(instrument, platform):
     setrun = False
     while not setrun:
         instrument.write(":RUN")
-        status = instr_query(instrument, platform, "TRIGGER:STATUS?").strip()
+        status = instr_query(instrument, platform, ":TRIG:STAT?").strip()
         setrun = (status != "STOP")
-        time.sleep(0.1)
-
-def instr_reset(instrument, platform):
-    print("Resetting instrument...")
-    instrument.close()
-    time.sleep(1)
-    instrument.open()
-    time.sleep(1)
-    instrument.timeout = 1.0
-    instrument.rigol_quirk_ieee_block = False
-    instrument.rigol_quirk = False
-    print("Reset: {}".format(instrument.ask("*IDN?")))
 
 def capture_oscilloscope():
     opts = get_opts()
@@ -190,10 +178,9 @@ def capture_oscilloscope():
     savedir = savedir_setup(opts.dir)
 
     #wavscale = np.vectorize(scale_waveform, excluded=['pre'])
-    instr.write(":WAVEFORM:MODE NORMAL")
-    instr.write(":WAVEFORM:FORMAT ASCII")
+    instr.write(":WAV:MODE NORMAL")
+    instr.write(":WAV:FORMAT ASCII")
     instr_run(instr, opts.platform)
-
     run = True
 
     # for each channel, grab the preamble containing the oscilloscope scaling information
@@ -201,12 +188,11 @@ def capture_oscilloscope():
     preambles = {}
 
     for channel in opts.channels:
-        instr.write(":WAVEFORM:SOURCE CHANNEL".format(channel))
+        instr.write(":WAV:SOUR CHAN{}".format(channel))
         if (opts.platform == 'visa'):
-            preamble = instr.query_ascii_values(":WAVEFORM:PREAMBLE?",separator=preamble_clean)
+            preamble = instr.query_ascii_values(":WAV:PRE?",separator=preamble_clean)
         else:
-            instr.write(":WAVEFORM:PREAMBLE?")
-#            time.sleep(READWAIT)
+            instr.write(":WAV:PRE?")
             rawdata = instr.read_raw()
             preamble = np.fromstring(rawdata,dtype=float,sep=',')
         preambles[str(channel)] = preamble
