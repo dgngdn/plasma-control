@@ -1,3 +1,18 @@
+Control System Ideas
+====================
+
+## Integrate From Old Documents
+
++ [Google Drive: Jet Process Control Construction][jetconstruction]
++ [Google Drive: Helium Plasma Jet for Process Control][controljet]
++ [GravesLab Procurement Guide][labguide]
+
+[jetconstruction]: https://docs.google.com/document/d/17yQckmciU2QfM6MzqPzMRlSyE4_9mhnCxxXMChq0zs8/edit#
+[controljet]: https://docs.google.com/document/d/1z8E_UMq1wbFp5oet1S8LuH3EvBWjHWXeQuGqULw7Hqo/edit#
+[labguide]: https://docs.google.com/document/d/1YZhZ0SSBKSBMMw_Il96y2_oVSuVCwmMCvpqHEN1S9YY/edit#
+
+## Unsorted
+
 FUNCTION GENERATOR
 Buy ICs for ±12V supply
 But +24VDC power supply
