@@ -1,5 +1,15 @@
 
 
+## Multiple Sensors
+
+Connecting multiple MLX sensors to a single I2C bus:
+
+* [http://www.chrisramsay.co.uk/posts/2014/09/arduino-and-multiple-mlx90614-sensors/#id1 Chris Ramsay: Arduino and Multiple MLX90614 Sensors]
+* [http://forum.arduino.cc/index.php?topic=89926.0 Arduino Forums: Reading data from multiple Melexis MLX90614 IR Sensors I2C]
+* [https://www.element14.com/community/message/137314 element14: Arduino Uno & Melexis IR Temp Sensor(s)]
+* [http://wiki.wiring.co/wiki/Connecting_Infrared_Thermometer_MLX90614_to_Wiring#Address_Changing Connecting Infrared Thermometer MLX90614]
+
+
 ## DIY-THERMOCAM PAPER
 
 via: https://github.com/maxritter/DIY-Thermocam/blob/master/Documents/Scientific%20Paper.pdf
@@ -16,14 +26,14 @@ The offset is compensated constantly with the spot sensor and the ambient temper
 115: CMD_GET_SPOTTEMP
  Description: Get the spot temperature from the MLX90614 sensor, in Fahrenheit
 or Celcius
- Returns (4 byte): Float split into four bytes, LSB first, then MSB 
+ Returns (4 byte): Float split into four bytes, LSB first, then MSB
 
 Lepton raw values - 9600 byte (Lepton2) or 38400 byte (Lepton3)
 o 4800 / 19200 raw values for the Lepton2 / Lepton3, split to two bytes, MSB
 first, then LSB
 o Raw value is 14-bit (0 … 16383) for each pixel, equivalent to infrared intensity
 o Difference can be made by the total file size (10005 byte Lepton2 vs. 38805
-Lepton3) 
+Lepton3)
 
 Calibration offset - 4 byte
 o Offset for the raw-to-abs temperature conversion
@@ -65,7 +75,7 @@ can trigger a calibration over the main menu and then point the device to differ
 objects in the surrounding area. One-hundred raw values from the Lepton and temperatures
 from the spot sensor are sampled. A least-square fit algorithm is applied to create a calibration
 formula. The result is a calibration slope and offset stored in the EEPROM for future usage.
-The offset is compensated constantly with the spot sensor and the ambient temperature. 
+The offset is compensated constantly with the spot sensor and the ambient temperature.
 
 
 ----
@@ -169,4 +179,3 @@ $50.93
 
 https://www.digikey.com/product-detail/en/melexis-technologies-nv/MLX90614ESF-DCI-000-TU/MLX90614ESF-DCI-000-TU-ND/3131345
 $--
-

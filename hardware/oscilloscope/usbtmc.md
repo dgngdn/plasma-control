@@ -26,8 +26,9 @@ https://pyvisa.readthedocs.io/en/stable/
 
 ## python-usbtmc
 
-https://github.com/python-ivi/python-usbtmc/
-http://alexforencich.com/wiki/en/python-usbtmc/start
++ https://github.com/python-ivi/python-usbtmc/
++ https://pypi.python.org/pypi/python-usbtmc python-usbtmc 0.8
++ http://alexforencich.com/wiki/en/python-usbtmc/start
 
 
 `pip install pyusb python-usbtmc`
@@ -56,7 +57,7 @@ i.ask(":TRIGGER:STATUS?")
 It has some code to deal with the "Rigol quirk":
 
     RIGOL_QUIRK_PIDS = [0x04ce, 0x0588]
-    
+
 The 0x04ce (DS1000Z) device also has self.rigol_quirk_ieee_block = True, which has been fixed in the newest firmware (00.04.03.02.03); set this to False to get python-usbtmc working again.
 
 
@@ -71,7 +72,7 @@ It also has some code to deal with the "Rigol quirk":
     126         __u16 idVendor;
     127         __u16 idProduct;
     128 };
-    129 
+    129
     130 static const struct usbtmc_ID_rigol_quirk usbtmc_id_quirk[] = {
     131         { 0x1ab1, 0x0588 },
     132         { 0x1ab1, 0x04b0 },
@@ -93,8 +94,3 @@ device = os.open("/dev/usbtmc0",os.O_RDWR)
 while True:
     os.write(device,":WAV:DATA?")
     os.read(device,4000)
-
-
-
-
-
