@@ -1,6 +1,14 @@
 
 
 
+## Prefabricated Unix utility
+
+There is a very nice Unix utility that will take care of this for you:
+
+    sudo apt install moreutils
+    cat /dev/arduino | ts "%Y-%M-%d_%H:%M:%.S"
+
+
 ### Prepending system time to a stream written to a file with shell scripts
 
 THIS WORKS, BUT STILL HAS BUFFERING PROBLEMS:
@@ -33,7 +41,7 @@ Using this to write to a file is" also delayed.
 
 Let's do some additional escaping on that one, and switch to double quotes
 to allow shell expansion:
-cat /dev/ttyS0 | sed "s/\r\n/$(date \+\"%Y-%m-%d\ %H:%M:%S\")\r\n/g" 
+cat /dev/ttyS0 | sed "s/\r\n/$(date \+\"%Y-%m-%d\ %H:%M:%S\")\r\n/g"
 NOPE
 
 cat /dev/ttyACM0 | awk '{print "date +%Y-%M-%d_%H:%M:%S:%N", $0; }'
@@ -155,7 +163,7 @@ now cat doesn't work...
 
 and now after raw, when cat works great:
 
-brandon@D105:~$ stty -a < /dev/ttyACM0 
+brandon@D105:~$ stty -a < /dev/ttyACM0
 speed 9600 baud; rows 0; columns 0; line = 0;
 intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^A; eol = <undef>; eol2 = <undef>; swtch = <undef>; start = ^Q;
 stop = ^S; susp = ^Z; rprnt = ^R; werase = ^W; lnext = ^V; flush = ^O; min = 1; time = 0;
@@ -206,13 +214,3 @@ HUGE resource on these cheap RTCs and low-power logger design!
 Info on this device, including how to change the i2c bus address:
 http://www.dx.com/p/ds3231-high-precision-real-time-clock-module-blue-3-3-5-5v-222910#.VzVVrrorKkA
 https://www.maximintegrated.com/en/products/digital/real-time-clocks/DS3231.html
-
-
-
-
-
-
-
-
-
-
