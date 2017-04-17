@@ -15,11 +15,23 @@ Working With Arduino
 <!-- tocstop -->
 
 
-
 ## Board Pinout
 
 + https://www.arduino.cc/en/reference/SPI
 + https://www.arduino.cc/en/reference/wire
+
+
+## Working from the CLI
+
+You can compile and upload code to an Arduino using the command-line interface:
+
+    arduino --upload --port /dev/arduino --board arduino:avr:uno filename.ino
+
+
+
+
+
+
 
 ## Maximum Sample Rate
 
