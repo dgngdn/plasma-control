@@ -1,16 +1,20 @@
 char junk;
 #include <avr/wdt.h>   //#include "lib/avr/wdt.h" // #include <avr/wdt.h>
 #include <Wire.h>      // #include "lib/Wire/src/Wire.h" // #include <Wire.h>
-#include <McpDigitalPot.h> // "lib/mcpdigitalpot/McpDigitalPot.h" //#include <McpDigitalPot.h>
+#include <i2cmaster.h> // "lib/i2cmaster/i2cmaster.h" // #include <i2cmaster.h>
+
+// DEFINE statements
+#define DEBUG true
+
 
 // GLOBAL CONSTANTS
 const int THERMOPILE1_ADDRESS = 0x5A<<1;
 const int THERMOPILE2_ADDRESS = 0x5B<<1;
-const long SERIAL_BAUD = 9600; // 4800,9600,14400,19200,38400,57600,115200,0.5M,1.0M,2.0M
-const int LOOP_DELAY = 10;      // milliseconds
+const long SERIAL_BAUD = 9600;   // 4800,9600,14400,19200,38400,57600,115200,0.5M,1.0M,2.0M
+const int LOOP_DELAY = 100;      // milliseconds
 
 // GLOBAL VARIABLES
-float time_ms = 0;
+int time_ms = 0;
 
 // holds measured values
 namespace data {
@@ -39,9 +43,15 @@ void setup_mlx() {
    */
 
   // Initialise the i2c bus
+  #if DEBUG
+    Serial.println("initializing i2c...");
+  #endif
   i2c_init();
   // Enable pullup resistors
   PORTC = (1 << PORTC4) | (1 << PORTC5);
+    #if DEBUG
+    Serial.println("i2c connection initialized!");
+  #endif
 }
 
 // retrieves temperatures from Melexis i2c thermopile
@@ -98,13 +108,22 @@ void setup_watchdog() {
   // Watchdog Timeouts: WDTO_{1,2,4,8}s
   // WDTO_{15,30,60,120,250,500}MS
   // http://www.megunolink.com/articles/how-to-detect-lockups-using-the-arduino-watchdog/
-  wdt_enable(WDTO_1S);
+  #if DEBUG
+    Serial.println("enabling watchdog timer...");
+  #endif
+  wdt_enable(WDTO_8S);
+  #if DEBUG
+    Serial.println("watchdog timer enabled!");
+  #endif
 }
 
 // set up serial connection
 void setup_serial() {
   // initialize serial communication at specified baudrate
   Serial.begin(SERIAL_BAUD);
+  #if DEBUG
+    Serial.println("Serial connection established!");
+  #endif
 }
 
 void setup() {
@@ -127,11 +146,11 @@ void loop() {
   data::temp_surf = get_tempDeg_mlx(THERMOPILE1_ADDRESS);
   data::temp_tube = get_tempDeg_mlx(THERMOPILE2_ADDRESS);
 
-  Serial.print(time_ms);
+  //Serial.print(time_ms);
+  //Serial.print(',');
+  Serial.print(data::temp_surf);
   Serial.print(',');
-  Serial.print(temp_surf);
-  Serial.print(',');
-  Serial.print(temp_tube);
+  Serial.print(data::temp_tube);
   Serial.println();
 
   // delay in-between reads
