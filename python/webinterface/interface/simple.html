@@ -1,10 +1,11 @@
 <head>
-  <script src="js/smoothie.js"></script>
+  <!-- <script src="js/smoothie.js"></script> -->
   <!-- https://github.com/joewalnes/reconnecting-websocket -->
-  <script src="js/reconnecting-websocket.js"></script>
+  <!-- <script src="js/reconnecting-websocket.js"></script> -->
 
   <script>
-  var ws = new ReconnectingWebSocket('ws://brandoncurtis.com:10015/');
+  var ws = new WebSocket('ws://brandoncurtis.com:10015/');
+  // var ws = new ReconnectingWebSocket('ws://brandoncurtis.com:10015/');
 
   ws.onmessage = function(e){
     // called when a message arrives
@@ -38,7 +39,7 @@
       Returned message from WS server: <span id="msgs"></span>
     </p>
 
-    <object src="img/000.pgm" type="image/x-portable-graymap"></object>
+    <!-- <object src="img/000.pgm" type="image/x-portable-graymap"></object> -->
   </div>
 
   <div id="divchart" style="position:relative;">
