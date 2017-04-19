@@ -3,7 +3,9 @@ Working With Arduino
 
 <!-- toc orderedList:0 depthFrom:2 depthTo:6 -->
 
+* [References](#references)
 * [Board Pinout](#board-pinout)
+* [Working from the CLI](#working-from-the-cli)
 * [Maximum Sample Rate](#maximum-sample-rate)
   * [ADC Rate Limitations](#adc-rate-limitations)
   * [See Also](#see-also)

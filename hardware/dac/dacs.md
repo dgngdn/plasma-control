@@ -23,6 +23,6 @@ how does the MCP41010 compare?
 + http://henrysbench.capnfatz.com/henrys-bench/arduino-output-devices/mcp41010-digital-potentiometer-arduino-user-manual/
 + http://ww1.microchip.com/downloads/en/DeviceDoc/22017c.pdf
 
-Symbol    		Interface    Resolution    Max DNL    Max INL    Operating temperature    Case    Mounting
-MCP41010-E/P    	SPI    8    ±1   	 ±1    -40...125    DIP8    THT
-MCP4261-103-E/P    SPI    8    ±0.5    ±1    -40...125    DIP14    THT
+    Symbol    		Interface    Resolution    Max DNL    Max INL    Operating temperature    Case    Mounting
+    MCP41010-E/P    	SPI    8    ±1   	 ±1    -40...125    DIP8    THT
+    MCP4261-103-E/P    SPI    8    ±0.5    ±1    -40...125    DIP14    THT
