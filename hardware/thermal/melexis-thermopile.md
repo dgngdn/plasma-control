@@ -1,6 +1,16 @@
 
+## Sensor Setup
 
-## Multiple Sensors
++ [MLX90614 Hookup Guide][hookup]
++ [BC Wiki: Non-Contact Temperature Measurement][bcwiki]
+
+[hookup]: https://learn.sparkfun.com/tutorials/mlx90614-ir-thermometer-hookup-guide/mlx90614-overview
+[bcwiki]: http://wiki.brandoncurtis.com/w/Non-Contact_Temperature_Measurement
+
+
+
+
+### Multiple Sensors
 
 Connecting multiple MLX sensors to a single I2C bus:
 
@@ -10,7 +20,10 @@ Connecting multiple MLX sensors to a single I2C bus:
 * [http://wiki.wiring.co/wiki/Connecting_Infrared_Thermometer_MLX90614_to_Wiring#Address_Changing Connecting Infrared Thermometer MLX90614]
 
 
-## DIY-THERMOCAM PAPER
+## Getting Real Temperatures
+
+
+### DIY-THERMOCAM PAPER
 
 via: https://github.com/maxritter/DIY-Thermocam/blob/master/Documents/Scientific%20Paper.pdf
 

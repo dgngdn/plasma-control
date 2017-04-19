@@ -2,11 +2,8 @@
 
 ## References
 
-Manual
-https://docs.google.com/file/d/0B-CoZGWGk5pvclBNc0J5RFpZVE0/edit
-
-Wikipedia: Newline definitions
-https://en.wikipedia.org/wiki/Newline
++ [Protek 9301 Function Generator Manual][manual]
++ [Wikipedia: Newline][wiki-newline]
 
 Terminal settings:
 
@@ -16,6 +13,8 @@ Terminal settings:
 4) Data Length: 8bit
 5) Communication Speed: 2400, 4800, 9600, 19200 BPS
 
+[manual]: https://docs.google.com/file/d/0B-CoZGWGk5pvclBNc0J5RFpZVE0/edit
+[wiki-newline]: https://learn.sparkfun.com/tutorials/raspberry-gpio
 
 ## Remote Controls
 

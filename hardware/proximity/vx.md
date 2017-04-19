@@ -25,9 +25,9 @@ $11.95
 
 ## Documentation
 
-http://www.st.com/content/st_com/en/products/embedded-software/proximity-sensors-software/stsw-img005.html
-https://github.com/pololu/vl53l0x-arduino
-https://github.com/pololu/vl6180x-arduino
++ http://www.st.com/content/st_com/en/products/embedded-software/proximity-sensors-software/stsw-img005.html
++ https://github.com/pololu/vl53l0x-arduino
++ https://github.com/pololu/vl6180x-arduino
 
 ----
 
@@ -37,16 +37,16 @@ device will start a measurement using the chosen mode (single or continuous)
 VL53L0X_PerformSingleMeasurement() function starts a measurement and waits for
 data ready, by polling on the ranging status or on the interrupt status.
 The 2 following API functions are called internally:
-• VL53L0X_StartMeasurement()
-• VL53L0X_GetMeasurementDataReady()
++ VL53L0X_StartMeasurement()
++ VL53L0X_GetMeasurementDataReady()
 
 VL53L0X_PerformSingleRangingMeasurement() function starts a measurement,
 waits for data ready (by polling on the ranging status or on the interrupt status) and reports
 the data. This function also clears the interrupt after the measurement.
 The 3 following API functions are called internally:
-• VL53L0X_PerformSingleMeasurement()
-• VL53L0X_GetRangingMeasurementData()
-• VL53L0X_ClearInterruptMask()
++ VL53L0X_PerformSingleMeasurement()
++ VL53L0X_GetRangingMeasurementData()
++ VL53L0X_ClearInterruptMask()
 
 VL53L0X_GetRangingMeasurementData() function returns the ranging data.
 

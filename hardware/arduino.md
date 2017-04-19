@@ -14,6 +14,11 @@ Working With Arduino
 
 <!-- tocstop -->
 
+## References
+
++ [BC Wiki: Arduino Hacking][bcwiki]
+
+[bcwiki]: https://brandoncurtis.github.io/wiki/p/arduino
 
 ## Board Pinout
 
