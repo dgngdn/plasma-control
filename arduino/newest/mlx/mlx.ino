@@ -111,7 +111,7 @@ void setup_watchdog() {
   #if DEBUG
     Serial.println("enabling watchdog timer...");
   #endif
-  wdt_enable(WDTO_8S);
+  wdt_enable(WDTO_1S);
   #if DEBUG
     Serial.println("watchdog timer enabled!");
   #endif
@@ -122,6 +122,8 @@ void setup_serial() {
   // initialize serial communication at specified baudrate
   Serial.begin(SERIAL_BAUD);
   #if DEBUG
+    Serial.println();
+    Serial.println();
     Serial.println("Serial connection established!");
   #endif
 }
