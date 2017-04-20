@@ -18,7 +18,7 @@ The range readings are in units of mm. */
 
 VL6180X sensor;
 
-const int read_num = 512;
+const int read_num = 100;
 int read_data[read_num];
 float read_average = 0;
 int read_index = 0;

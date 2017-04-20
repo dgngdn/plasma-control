@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
+
 import serial
-arduino = serial.Serial("/dev/arduino-mega")
+arduino = serial.Serial("/dev/arduino")
 
 def getline():
   gotline = False
