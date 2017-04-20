@@ -39,7 +39,7 @@ const int PIN_DAC_B = 3;
 const int DACSTEPS = 4096;
 
 //MCP4922 DAC(51,52,53,5);    // (MOSI,SCK,CS,LDAC) define Connections for MEGA_board, 
-MCP4922 DAC(11,13,10,5);    // (MOSI,SCK,CS,LDAC) define Connections for UNO_board, 
+MCP4922 DAC(11,13,9,5);    // (MOSI,SCK,CS,LDAC) define Connections for UNO_board, 
 
 namespace data {
   int DAC_A;
