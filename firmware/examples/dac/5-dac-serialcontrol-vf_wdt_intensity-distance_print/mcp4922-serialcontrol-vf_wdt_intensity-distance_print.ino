@@ -73,7 +73,7 @@ void setup_watchdog() {
   #if DEBUG
     Serial.println("enabling watchdog timer...");
   #endif
-  wdt_enable(WDTO_8S);
+  wdt_enable(WDTO_250MS);
   #if DEBUG
     Serial.println("watchdog timer enabled!");
   #endif

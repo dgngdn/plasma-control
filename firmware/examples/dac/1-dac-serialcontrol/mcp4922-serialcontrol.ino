@@ -29,6 +29,11 @@ namespace setpoint {
   float flowrate;
 }
 
+float mapfloat(float x, long in_min, long in_max, long out_min, long out_max)
+{
+ return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
 void get_serial() {
   // gets manual input from the serial port
   #if DEBUG
@@ -95,7 +100,7 @@ void actuate_inputs() {
   #if DEBUG
     Serial.println("actuating inputs...");
   #endif
-  DAC.Set(map(setpoint::voltage,0,10,4095,0), 0);
+  DAC.Set(mapfloat(setpoint::voltage,0,10,4095,0), 0);
 }
 
 
