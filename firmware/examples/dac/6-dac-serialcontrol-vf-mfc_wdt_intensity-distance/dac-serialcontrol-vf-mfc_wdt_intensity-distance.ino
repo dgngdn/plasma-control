@@ -38,8 +38,9 @@ const int PIN_DAC_A = 2;
 const int PIN_DAC_B = 3;
 const int DACSTEPS = 4096;
 
-//MCP4922 DAC(51,52,53,5);    // (MOSI,SCK,CS,LDAC) define Connections for MEGA_board, 
-MCP4922 DAC(11,13,9,5);    // (MOSI,SCK,CS,LDAC) define Connections for UNO_board, 
+//MCP4922 DAC(51,52,53,5);    // (MOSI,SCK,CS,LDAC) define Connections for MEGA_board
+MCP4922 DAC_FXN(11,13,10,5);  // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
+MCP4922 DAC_MFC(11,13,9,5);   // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
 
 namespace data {
   int DAC_A;
@@ -144,6 +145,15 @@ void manual_input(String input) {
       #endif
       actuate_inputs();
       break;
+      
+    case 'q' :
+      // you sent q,###
+      setpoint::flowrate = input.substring(2).toFloat();
+      #if DEBUG
+        Serial.println("flowrate set!");
+      #endif
+      actuate_inputs();
+      break;
   }
 }
 
@@ -152,21 +162,24 @@ void actuate_inputs() {
   #if DEBUG
     Serial.println("actuating inputs...");
   #endif
-  //DAC.Set(mapfloat(setpoint::voltage,0,10,0,DACSTEPS-1), mapfloat(setpoint::frequency,0,10,DACSTEPS-1,0));
-  //DAC.Set(mapfloat(setpoint::voltage,0,10,((float) 6 / 10)*DACSTEPS,((float) 2 / 10)*DACSTEPS), mapfloat(setpoint::frequency,0,10,DACSTEPS-1,0));
+  //DAC_FXN.Set(mapfloat(setpoint::voltage,0,10,0,DACSTEPS-1), mapfloat(setpoint::frequency,0,10,DACSTEPS-1,0));
+  //DAC_FXN.Set(mapfloat(setpoint::voltage,0,10,((float) 6 / 10)*DACSTEPS,((float) 2 / 10)*DACSTEPS), mapfloat(setpoint::frequency,0,10,DACSTEPS-1,0));
   
   // tuned for Brandon's development setup on 24V supply:
-  //DAC.Set(mapfloat(setpoint::voltage,0,10,0.96*(DACSTEPS-1),0.55*(DACSTEPS-1)), 
+  //DAC_FXN.Set(mapfloat(setpoint::voltage,0,10,0.96*(DACSTEPS-1),0.55*(DACSTEPS-1)), 
   //        mapfloat(setpoint::frequency,10,20,0.92*(DACSTEPS-1),0.1*(DACSTEPS-1)));
 
   // tuned for the control jet setup on 24V supply:
-  DAC.Set(mapfloat(setpoint::voltage,0,10,0.96*(DACSTEPS-1),0.55*(DACSTEPS-1)), 
+  DAC_FXN.Set(mapfloat(setpoint::voltage,0,10,0.96*(DACSTEPS-1),0.55*(DACSTEPS-1)), 
           mapfloat(setpoint::frequency,10,20,0.90*(DACSTEPS-1),0.085*(DACSTEPS-1)));
+          
+  DAC_MFC.Set(mapfloat(setpoint::flowrate,0,10,0,4095),0);
+  
 }
 
 float mapfloat(float x, long in_min, long in_max, long out_min, long out_max)
 {
- return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+ return (x - in_min) * ((float)out_max - out_min) / ((float)in_max - in_min) + out_min;
 }
 
 void addRead(int value)
@@ -226,6 +239,8 @@ void loop()
   Serial.print(",\t");
   //Serial.print(data::DAC_B);
   Serial.print(setpoint::frequency);
+  Serial.print(",\t");
+  Serial.print(setpoint::flowrate);
   Serial.print(",\t");
   Serial.print(data::DIST); // print distance
   Serial.print(",\t");
