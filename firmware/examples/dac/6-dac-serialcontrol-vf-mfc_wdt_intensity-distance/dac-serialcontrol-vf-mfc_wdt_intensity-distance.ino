@@ -22,6 +22,9 @@ The range readings are in units of mm. */
 
 // GLOBAL VARS
 VL6180X proxsensor;
+//MCP4922 DAC(51,52,53,5);    // (MOSI,SCK,CS,LDAC) define Connections for MEGA_board
+MCP4922 DAC_FXN(11,13,10,5);  // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
+MCP4922 DAC_MFC(11,13,9,5);   // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
 String inputString = "";         // a string to hold incoming data
 
 const int read_num = 100;
@@ -34,18 +37,20 @@ int read_total = 0;
 const double SERIAL_BAUD = 38400;
 const int PROXIMITY_TIMEOUT = 25;
 const int LOOPDELAY = 1; // milliseconds
-const int PIN_DAC_A = 2; 
-const int PIN_DAC_B = 3;
 const int DACSTEPS = 4096;
 
-//MCP4922 DAC(51,52,53,5);    // (MOSI,SCK,CS,LDAC) define Connections for MEGA_board
-MCP4922 DAC_FXN(11,13,10,5);  // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
-MCP4922 DAC_MFC(11,13,9,5);   // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
+// PINOUT
+const int PIN_PHOTO_A = 0;
+const int PIN_PHOTO_B = 1;
+const int PIN_DAC_A = 2; 
+const int PIN_DAC_B = 3;
 
 namespace data {
-  int DAC_A;
-  int DAC_B;
-  int DIST;
+  int dac_a;
+  int dac_b;
+  int dist;
+  int photo_a;
+  int photo_b;
 }
 
 namespace setpoint {
@@ -224,27 +229,31 @@ void loop()
     get_serial();
   }
   
-  // read DAC values and print
-  data::DAC_A = analogRead(PIN_DAC_A); // analogRead(A0); //analogRead(PIN_DAC_A);
-  data::DAC_B = analogRead(PIN_DAC_B); // analogRead(A1); //analogRead(PIN_DAC_B);
+  // read and save data from sensors
+  data::dac_a = analogRead(PIN_DAC_A);
+  data::dac_b = analogRead(PIN_DAC_B);
+  data::photo_a = analogRead(PIN_PHOTO_A);
+  data::photo_b = analogRead(PIN_PHOTO_B);
+
   
   // read VL6180X distance and add to averaging array
-  data::DIST = proxsensor.readRangeSingleMillimeters();
-  //addRead(data::DIST);
+  data::dist = proxsensor.readRangeSingleMillimeters();
+  //addRead(data::dist);
   
   Serial.print(millis());
   Serial.print(",\t");
-  //Serial.print(data::DAC_A);
   Serial.print(setpoint::voltage);
   Serial.print(",\t");
-  //Serial.print(data::DAC_B);
   Serial.print(setpoint::frequency);
   Serial.print(",\t");
   Serial.print(setpoint::flowrate);
   Serial.print(",\t");
-  Serial.print(data::DIST); // print distance
+  Serial.print(data::dist); // print distance
   Serial.print(",\t");
-  Serial.print(analogRead(A0)); // print optical intensity
+  Serial.print(data::photo_a); // print optical intensity
+  Serial.print(",\t");
+  Serial.print(data::photo_b); // print optical intensity
+  Serial.print(",\t");
   if (proxsensor.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
   Serial.println();
   delay(LOOPDELAY);
