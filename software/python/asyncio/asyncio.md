@@ -2,6 +2,19 @@
 
 ## pyserial-asyncio experiments
 
+### Goal
+
+
+## Python asyncio - add_reader, add_writer
+
+Goal: bridge two protocols
+
+Messages from one protocol are seamlessly, asynchronously forwarded on another protocol!
+
+To practice, let's try bridging two Arduinos so they talk to eachother!
+
+
+
 ### References
 
 pyserial-asyncio
@@ -15,6 +28,12 @@ python async
 
 + http://www.andy-pearce.com/blog/posts/2016/Jul/the-state-of-python-coroutines-asyncio-callbacks-vs-coroutines/
   - I used this EXTENSIVELY to design BridgeServer!
++ [Exploring Python 3’s Asyncio by Example](http://www.giantflyingsaucer.com/blog/?p=5557)
++ https://www.blog.pythonlibrary.org/2016/07/26/python-3-an-intro-to-asyncio/
++ http://stackabuse.com/python-async-await-tutorial/
++ [PEP 3156 -- Asynchronous IO Support Rebooted: the "asyncio" Module](https://www.python.org/dev/peps/pep-3156/#i-o-callbacks)
++ [How Do Python Coroutines Work?](http://opensourcebridge.org/sessions/1582)
+
 
 ### Setup
 
@@ -56,6 +75,11 @@ You could, for instance, use asyncio.ensure_future() to wrap it in a Future and 
 
 ## Callbacks vs. Coroutines
 
+### Coroutines
+
++ https://docs.python.org/3/library/asyncio-protocol.html
+
+
 Calling a coroutine from asyncio.Protocol.data_received
 https://stackoverflow.com/questions/29126340/calling-a-coroutine-from-asyncio-protocol-data-received
 
@@ -95,6 +119,16 @@ To have a reliable execution order, use stream objects in a coroutine with yield
 
 ----
 
+BDFL discusses Streams: https://groups.google.com/forum/#!msg/python-tulip/z-IVH5RoDzo/SpZc0zTuPJsJ
+
+
+### Stream Functions
+
++ https://docs.python.org/3/library/asyncio-stream.html
++ https://docs.python.org/3/library/asyncio-task.html
++ https://docs.python.org/3/library/asyncio-eventloop.html
+
+
 ### Coroutines in pyserial-asyncio
 
 open_serial_connection:
@@ -115,6 +149,20 @@ open_serial_connection:
 ## Weird Errors
 
 ValueError: filedescriptor out of range in select()
+    (you're opening a zillion files and never closing them!)
     
-    
+
+
+## Websockets
+
+
+Discussion of WebSockets server in Python:
+
+http://igordavydenko.com/talks/lvivpy-5/#slide-41
+This uses aiohttp
+
+
+
+
+
 
