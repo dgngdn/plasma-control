@@ -1,5 +1,6 @@
 ## References
 
+http://crcmod.sourceforge.net/
 https://pypi.python.org/pypi/crcmod
 https://en.wikipedia.org/wiki/Cyclic_redundancy_check
 https://en.wikipedia.org/wiki/Computation_of_cyclic_redundancy_checks

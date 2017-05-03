@@ -1,4 +1,6 @@
+## Software Stack
 
+Thermal images can be acquired from the camera using pylepton
 
 
 ## Resources

@@ -9,6 +9,38 @@
 
 
 
+## MLX90614 Libraries
+
+The default address of these sensors on the i2c bus is 0x5a, but this value is reprogrammable so that up to 127 sensors can be daisy-chained on a single bus.  I have used another Arduino library to reprogram the second thermopile to 0x5b.
+
+    ->> link to script for changing the thermopile ID
+
+The I2C addresses and IDs of my sensors:
+  BCI4287005 - 5° field-of-view
+    address 0x5A
+    https://www.digikey.com/product-detail/en/Melexis-Technologies-NV/MLX90614ESF-BCI-000-TU/MLX90614ESF-BCI-000-TU-ND/2666249
+  BCF1731503 - 10° field-of-view
+    address 0x5B
+
+
+
+MLX90614 by Steve Marple, v0.1.2
+SoftWire is used to bit-bang over I2C.
+Requires AsyncDelay and SoftWire.
+This library is present in the Arduino IDE library manager.
+https://github.com/stevemarple/MLX90614/
+
+Adafruit MLX90614 Library by Adafruit, v1.0.0
+Supports MLX90614 sensors at any I2C address
+  Adafruit_MLX90614::Adafruit_MLX90614(uint8_t i2caddr)
+Supports reading object and ambient temperatures
+  double Adafruit_MLX90614::readObjectTempC(void)
+  double Adafruit_MLX90614::readAmbientTempC(void)
+This library is present in the Arduino IDE library manager.
+https://github.com/adafruit/Adafruit-MLX90614-Library
+
+
+
 
 ### Multiple Sensors
 

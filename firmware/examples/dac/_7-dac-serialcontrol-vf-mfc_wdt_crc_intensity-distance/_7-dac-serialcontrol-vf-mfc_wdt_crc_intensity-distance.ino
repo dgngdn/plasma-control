@@ -34,7 +34,7 @@ int read_index = 0;
 int read_total = 0;
 
 // GLOBAL CONSTANTS
-const unsigned long SERIAL_BAUD = 38400;
+const double SERIAL_BAUD = 38400;
 const int PROXIMITY_TIMEOUT = 25;
 const int LOOPDELAY = 1; // milliseconds
 const int DACSTEPS = 4096;
@@ -262,7 +262,7 @@ void loop()
   }
 
   // get the timestamp
-  unsigned long ts = millis();
+  double ts = millis();
   
   // read and save data from sensors
   data::dac_a = analogRead(PIN_DAC_A);
@@ -275,6 +275,8 @@ void loop()
   // build the string from the data
   String mystring = "";
   mystring += ts;
+  mystring += ',';
+  mystring += setpoint::voltage;
   mystring += ',';
   mystring += setpoint::voltage;
   mystring += ',';
