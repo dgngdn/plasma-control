@@ -1,7 +1,7 @@
 char junk;
 /* http://arduino.cc/en/Hacking/LibraryTutorial */
 /* http://ww1.microchip.com/downloads/en/DeviceDoc/22250A.pdf */
-// Brandon: TESTING 2017-04-19
+// Brandon: TESTING 2017-05-22
 
 // running with 24V power supply for op amp and function generator
 
