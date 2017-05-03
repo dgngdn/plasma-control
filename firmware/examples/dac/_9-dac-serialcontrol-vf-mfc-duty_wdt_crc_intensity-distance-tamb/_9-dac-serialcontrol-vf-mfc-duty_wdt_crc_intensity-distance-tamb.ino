@@ -1,7 +1,7 @@
 char junk;
 /* http://arduino.cc/en/Hacking/LibraryTutorial */
 /* http://ww1.microchip.com/downloads/en/DeviceDoc/22250A.pdf */
-// Brandon: TESTING 2017-05-22
+// Brandon: TESTING 2017-04-19
 
 // running with 24V power supply for op amp and function generator
 
@@ -20,33 +20,7 @@ The range readings are in units of mm. */
 #include <Adafruit_MLX90614.h>  // library: MLX90614 thermopile
 #include <SPI.h>
 #include <Wire.h>
-#include <PID_v1.h>    //"lib/PID/PID_v1.h" // #include <PID_v1.h>
 
-namespace data {
-  double dac_a;
-  double dac_b;
-  double dist;
-  double photo_a;
-  double photo_b;
-  double tamb;
-}
-
-namespace setpoint {
-  double voltage = 0;
-  double frequency = 10;
-  double flowrate = 0;
-  double duty = 0;
-}
-
-namespace pid {
-  double Setpoint = 50;
-  double* Input = &data::photo_a;
-  double Output;
-  double Kp = 0.00;  // 0.0 // 25.0 // 14.89 // process value control
-  double Ki = 5.00;   // 0.5 // 3.0  // 2.23  // integral control
-  double Kd = 0.00;  // 0.0 // 0.0  // 0.0   // derivative control
-  double* actuated = &setpoint::duty;
-}
 
 // GLOBAL VARS
 VL6180X proxsensor;
@@ -54,8 +28,6 @@ VL6180X proxsensor;
 MCP4922 DAC_FXN(11,13,10,5);  // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
 MCP4922 DAC_MFC(11,13,9,5);   // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
 Adafruit_MLX90614 mlx_5deg = Adafruit_MLX90614(0x5A);  // default address of MLX90614 thermopile
-//PID myPID(&pid::Input, &pid::Output, &pid::Setpoint, pid::Kp, pid::Ki, pid::Kd, DIRECT); // DIRECT or REVERSE
-PID myPID(pid::Input, &pid::Output, &pid::Setpoint, pid::Kp, pid::Ki, pid::Kd, DIRECT); // DIRECT or REVERSE
 String inputString = "";         // a string to hold incoming data
 
 const int read_num = 100;
@@ -65,8 +37,8 @@ int read_index = 0;
 int read_total = 0;
 
 // GLOBAL CONSTANTS
-const unsigned long SERIAL_BAUD = 115200; // 4800,9600,14400,19200,38400,57600,115200,0.5M,1.0M,2.0M
-const int PROXIMITY_TIMEOUT = 25; // milliseconds until proximity sensor times out
+const unsigned long SERIAL_BAUD = 38400;
+const int PROXIMITY_TIMEOUT = 25;
 const int LOOPDELAY = 1; // milliseconds
 const int DACSTEPS = 4096;
 
@@ -77,7 +49,21 @@ const int PIN_DAC_A = 2;
 const int PIN_DAC_B = 3;
 const int PIN_PWM = 3;
 
+namespace data {
+  int dac_a;
+  int dac_b;
+  int dist;
+  int photo_a;
+  int photo_b;
+  float tamb;
+}
 
+namespace setpoint {
+  float voltage = 0;
+  float frequency = 10;
+  float flowrate = 0;
+  float duty = 0;
+}
 
 static const uint8_t PROGMEM dscrc_table[] = {
       0, 94,188,226, 97, 63,221,131,194,156,126, 32,163,253, 31, 65,
@@ -220,133 +206,6 @@ void manual_input(String input) {
       #endif
       actuate_inputs();
       break;
-
-    case 's' :
-      // you sent s,###
-      pid::Setpoint = input.substring(2).toFloat();
-      #if DEBUG
-        Serial.println("PID Setpoint set!");
-      #endif
-      actuate_inputs();
-      break;
-
-    case 'p' :
-      // you sent p,###
-      // PID controller settings
-      
-      if (input.charAt(2) == 'c') {
-        // you sent p,c
-        // FUNCTION: toggle controller state
-        if (myPID.GetMode() != 0) { // if PID is currently on....
-          myPID.SetMode(0);         // turn PID off
-          #if DEBUG
-          Serial.println("PID control turned off!");
-          #endif
-        }
-        else {                     // but if PID controller currently off...
-          pid::Output = *pid::actuated;  // reset PID output to current setpoint
-          myPID.SetMode(1);        // turn PID on
-          pid::Output = *pid::actuated;  // reset PID output to current setpoint
-          #if DEBUG
-          Serial.println("PID control turned on!");
-          #endif
-        }
-      }
-        
-      if (input.charAt(2) == 'i') {
-        // you sent p,i,
-        // FUNCTION: set PID controller Input
-        if (input.charAt(4) == 'i') {
-          // you sent p,i,i,
-          if (input.charAt(6) == '1') {
-            // you sent p,i,i,1
-            pid::Input = &data::photo_a;
-            #if DEBUG
-            Serial.println("PID input set: intensity1");
-            #endif
-        }
-          if (input.charAt(6) == '2') {
-            // you sent p,i,i,2
-            pid::Input = &data::photo_b;
-            #if DEBUG
-            Serial.println("PID input set: intensity2");
-            #endif
-          }
-        }
-      }
-
-      if (input.charAt(2) == 'o') {
-        // you sent p,o,
-        // FUNCTION: set PID controller Output (what it's actuating)
-        if (input.charAt(4) == 'v') {
-          // you sent p,o,v
-          pid::actuated = &setpoint::voltage;
-          myPID.SetOutputLimits(0,10);
-          #if DEBUG
-          Serial.println("PID output set: voltage");
-          #endif
-        }
-        if (input.charAt(4) == 'f') {
-          // you sent p,o,f
-          pid::actuated = &setpoint::frequency;
-          myPID.SetOutputLimits(10,20);
-          #if DEBUG
-          Serial.println("PID output set: frequency");
-          #endif
-        }
-        if (input.charAt(6) == 'q') {
-          // you sent p,o,q
-          pid::actuated = &setpoint::flowrate;
-          myPID.SetOutputLimits(0,3);
-          #if DEBUG
-          Serial.println("PID output set: flow rate");
-          #endif
-        }
-        if (input.charAt(6) == 'd') {
-          // you sent p,o,d
-          pid::actuated = &setpoint::duty;
-          myPID.SetOutputLimits(0,100);
-          #if DEBUG
-          Serial.println("PID output set: duty cycle");
-          #endif
-        }
-      }
-
-      if (input.charAt(2) == 't') {
-        // you sent p,t,
-        // FUNCTION: set PID tuning
-
-        if (input.charAt(4) == 'p') {
-          pid::Kp = input.substring(6).toFloat();
-          myPID.SetTunings(pid::Kp,myPID.GetKi(),myPID.GetKd());
-          #if DEBUG
-            Serial.println("Kp set!");
-          #endif
-        }
-  
-        if (input.charAt(4) == 'i') {
-          pid::Ki = input.substring(6).toFloat();
-          myPID.SetTunings(myPID.GetKp(),pid::Ki,myPID.GetKd());
-          #if DEBUG
-            Serial.println("Ki set!");
-          #endif
-        }
-  
-        if (input.charAt(4) == 'd') {
-          pid::Kd = input.substring(6).toFloat();
-          myPID.SetTunings(myPID.GetKp(),myPID.GetKi(),pid::Kd);
-          #if DEBUG
-            Serial.println("Kd set!");
-          #endif
-        }
-      }
-
-
-      
-      actuate_inputs();
-      break;
-
-    // INSERT CASE X
   }
 }
 
@@ -405,14 +264,6 @@ void setup()
   proxsensor.configureDefault();
   proxsensor.setTimeout(PROXIMITY_TIMEOUT);
 
-  //turn the PID on
-  //pid::Input = &data::photo_a;
-  //pid::Setpoint = 0;
-  //pid::actuated = &setpoint::duty;
-  myPID.SetOutputLimits(0,100);
-  myPID.SetSampleTime(100); // in milliseconds
-  myPID.SetMode(AUTOMATIC);
-
   actuate_inputs();
 }
 
@@ -421,13 +272,6 @@ void loop()
   // reset the watchdog timer
   // if this doesn't occur within WDTO_X, system resets
   wdt_reset();
-
-  //pid::Input = data::photo_a;
-  if ( myPID.Compute() ) {
-    *pid::actuated = pid::Output;
-    // actuate the system inputs via the digital potentiometers
-    actuate_inputs();
-  }
   
   if (Serial.available() > 0) {
     #if DEBUG
@@ -451,30 +295,22 @@ void loop()
   // build the string from the data
   String mystring = "";
   mystring += ts;
-  mystring += ",\t";
+  mystring += ',';
   mystring += setpoint::voltage;
-  mystring += ",\t";
+  mystring += ',';
   mystring += setpoint::frequency;
-  mystring += ",\t";
+  mystring += ',';
   mystring += setpoint::flowrate;
-  mystring += ",\t";
+  mystring += ',';
   mystring += setpoint::duty;
-  mystring += ",\t";
+  mystring += ',';
   mystring += data::dist;
-  mystring += ",\t";
+  mystring += ',';
   mystring += data::photo_a;
-  mystring += ",\t";
+  mystring += ',';
   mystring += data::photo_b;
-  mystring += ",\t";
+  mystring += ',';
   mystring += data::tamb;
-  mystring += ",\t";
-  mystring += myPID.GetMode();
-  mystring += ",\t";
-  mystring += pid::Setpoint;
-  mystring += ",\t";
-  mystring += *pid::Input;
-  mystring += ",\t";
-  mystring += pid::Output;
 
   // calculate the CRC8 of the string
   // first, convert string to array of chars (signed ints)
@@ -490,12 +326,30 @@ void loop()
 
   // printing the data string
   Serial.print(mystring);
-  Serial.print(",\t");
+  Serial.print(',');
 
   // printing the crc
   Serial.print(mycrc);
   Serial.println();
   delay(LOOPDELAY);
 
+  /*
+  Serial.print(ts);
+  Serial.print(",\t");
+  Serial.print(setpoint::voltage);
+  Serial.print(",\t");
+  Serial.print(setpoint::frequency);
+  Serial.print(",\t");
+  Serial.print(setpoint::flowrate);
+  Serial.print(",\t");
+  Serial.print(data::dist); // print distance
+  Serial.print(",\t");
+  Serial.print(data::photo_a); // print optical intensity
+  Serial.print(",\t");
+  Serial.print(data::photo_b); // print optical intensity
+  Serial.print(",\t");
+  if (proxsensor.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+  Serial.println();
+  */
 }
 
