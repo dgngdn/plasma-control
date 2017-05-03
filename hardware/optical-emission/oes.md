@@ -1,6 +1,31 @@
 
 
-## Interpreting Spectra
+
+## OceanOptics USB2000+
+
++ https://oceanoptics.com/product/usb2000-custom/
++ https://oceanoptics.com/wp-content/uploads/OEM-Data-Sheet-USB2000-.pdf
++ 
+
+Input connector: SMA 905
+
+Software:
++ Python frontend:  https://github.com/ap--/python-seabreeze (wraps the C with Cython)
++ C backend:        https://sourceforge.net/projects/seabreeze/
++ Python backend:   (included in Python frontend module)
+
+## TODO
+
+Can a GPIO be programmed to provide continuous reading of a single value?
+
+
+
+
+
+## How To Use
+
+
+### Interpreting Spectra
 
 learning using:
 + http://www.reed.edu/physics/courses/Physics332.s13/pdf/N2%20Spectrum.pdf
@@ -12,7 +37,7 @@ log of(band intensity x band wavelength / transition probability) equals (vibrat
 + what does it mean when first negative is excited relative to second positive?
 
 
-## Spectral Features
+### Spectral Features
 
 observed major peaks
 
@@ -28,7 +53,7 @@ N2 1st negative
 + 358.0    1-0
 
 
-### clearly visible
+#### clearly visible
 
 2nd⁺
 (0-1,1-2)
@@ -42,7 +67,7 @@ N2 1st negative
 (0-1,1-2,2-3)
 (0-2,1-3,2-4)
 
-### N2 2nd positive
+#### N2 2nd positive
 
 + 337.0    0-0
 + 315.8    1-0
@@ -99,7 +124,7 @@ X-3
 506.7
 
 
-### N2 1st negative
+#### N2 1st negative
 
 X-0
 391.2

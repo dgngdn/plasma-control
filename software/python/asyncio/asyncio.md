@@ -164,5 +164,82 @@ This uses aiohttp
 
 
 
+## Errors
+
+('hello,287605856,63\r\n', 'ar3')
+('hello,287551366,252\r\n', 'ar1')
+Traceback (most recent call last):
+  File "/mnt/storage/.virtualenvs/serial/lib/python3.5/site-packages/serial/serialposix.py", line 490, in read
+    'device reports readiness to read but returned no data '
+serial.serialutil.SerialException: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "async-coroutine-return.py", line 36, in <module>
+    loop.run_until_complete(echo_server(loop))
+  File "/usr/lib/python3.5/asyncio/base_events.py", line 387, in run_until_complete
+    return future.result()
+  File "/usr/lib/python3.5/asyncio/futures.py", line 274, in result
+    raise self._exception
+  File "/usr/lib/python3.5/asyncio/tasks.py", line 239, in _step
+    result = coro.send(None)
+  File "async-coroutine-return.py", line 22, in echo_server
+    print(task.result())
+  File "/usr/lib/python3.5/asyncio/futures.py", line 274, in result
+    raise self._exception
+  File "/usr/lib/python3.5/asyncio/tasks.py", line 241, in _step
+    result = coro.throw(exc)
+  File "async-coroutine-return.py", line 29, in gotmessage
+    data = await reader.readline()
+  File "/usr/lib/python3.5/asyncio/streams.py", line 481, in readline
+    line = yield from self.readuntil(sep)
+  File "/usr/lib/python3.5/asyncio/streams.py", line 574, in readuntil
+    yield from self._wait_for_data('readuntil')
+  File "/usr/lib/python3.5/asyncio/streams.py", line 457, in _wait_for_data
+    yield from self._waiter
+  File "/usr/lib/python3.5/asyncio/futures.py", line 361, in __iter__
+    yield self  # This tells Task to wait for completion.
+  File "/usr/lib/python3.5/asyncio/tasks.py", line 296, in _wakeup
+    future.result()
+  File "/usr/lib/python3.5/asyncio/futures.py", line 274, in result
+    raise self._exception
+  File "/mnt/storage/.virtualenvs/serial/lib/python3.5/site-packages/serial_asyncio/__init__.py", line 101, in _read_ready
+    data = self._serial.read(self._max_read_size)
+  File "/mnt/storage/.virtualenvs/serial/lib/python3.5/site-packages/serial/serialposix.py", line 497, in read
+    raise SerialException('read failed: {}'.format(e))
+serial.serialutil.SerialException: read failed: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+
+----
+
+('hello,287729361,83\r\n', 'ar1')
+('hello,287681764,110\r\n', 'ar5')
+Traceback (most recent call last):
+  File "async-coroutine-return.py", line 36, in <module>
+    loop.run_until_complete(echo_server(loop))
+  File "/usr/lib/python3.5/asyncio/base_events.py", line 387, in run_until_complete
+    return future.result()
+  File "/usr/lib/python3.5/asyncio/futures.py", line 274, in result
+    raise self._exception
+  File "/usr/lib/python3.5/asyncio/tasks.py", line 239, in _step
+    result = coro.send(None)
+  File "async-coroutine-return.py", line 22, in echo_server
+    print(task.result())
+  File "/usr/lib/python3.5/asyncio/futures.py", line 274, in result
+    raise self._exception
+  File "/usr/lib/python3.5/asyncio/tasks.py", line 239, in _step
+    result = coro.send(None)
+  File "async-coroutine-return.py", line 30, in gotmessage
+    message = data.decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xfb in position 11: invalid start byte
+Task was destroyed but it is pending!
+task: <Task pending coro=<gotmessage() running at async-coroutine-return.py:29> wait_for=<Future pending cb=[Task._wakeup()]>>
+Task was destroyed but it is pending!
+task: <Task pending coro=<gotmessage() running at async-coroutine-return.py:29> wait_for=<Future pending cb=[Task._wakeup()]>>
+Task was destroyed but it is pending!
+task: <Task pending coro=<gotmessage() running at async-coroutine-return.py:29> wait_for=<Future pending cb=[Task._wakeup()]>>
+Task was destroyed but it is pending!
+task: <Task pending coro=<gotmessage() running at async-coroutine-return.py:29> wait_for=<Future pending cb=[Task._wakeup()]>>
+
 
 

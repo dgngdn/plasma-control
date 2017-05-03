@@ -1,5 +1,10 @@
 
 
+# Standard Transports and Protocols
+
++ https://en.wikipedia.org/wiki/Virtual_Instrument_Software_Architecture
++ https://en.wikipedia.org/wiki/Standard_Commands_for_Programmable_Instruments
++ https://en.wikipedia.org/wiki/VME_eXtensions_for_Instrumentation
 
 
 # What We're Using
