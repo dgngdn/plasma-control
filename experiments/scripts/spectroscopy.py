@@ -66,7 +66,8 @@ if __name__ == "__main__":
                                           stdout=subprocess.PIPE)
     p.wait()
     data,err = p.communicate()
-    data = np.array([e.split(',') for e in data.splitlines()],dtype=float)
+    #data = np.array([e.split(',') for e in data.splitlines()],dtype=float)
+    data = np.array([e.split(',') for e in data.decode('utf8').splitlines()],dtype=float)
 
     # save the spectrum to a csv file, timestamped with the integration time
     curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
