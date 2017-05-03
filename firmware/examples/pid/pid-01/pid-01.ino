@@ -1,13 +1,21 @@
 char junk;
-/* http://arduino.cc/en/Hacking/LibraryTutorial */
-/* http://ww1.microchip.com/downloads/en/DeviceDoc/22250A.pdf */
-// Brandon: TESTING 2017-05-22
-
-// running with 24V power supply for op amp and function generator
-
-/* This minimal example shows how to get single-shot range
-measurements from the VL6180X.
-The range readings are in units of mm. */
+/*  
+ *  ## NOTEBOOK
+ *  2017-05-03 created -- Brandon Curtis
+ *  2017-05-03 tested, no plasma
+ *  <not yet tested with plasma!>
+ *  
+ *  ## FEATURES
+ *  
+ *  
+ *  
+ *  
+ *  
+ *  
+ *  
+ *  
+ *  
+*/
 
 // DEFINES
 #define DEBUG false
@@ -22,7 +30,9 @@ The range readings are in units of mm. */
 #include <Wire.h>
 #include <PID_v1.h>    //"lib/PID/PID_v1.h" // #include <PID_v1.h>
 
+// NAMESPACES
 namespace data {
+  unsigned long ts;
   double dac_a;
   double dac_b;
   double dist;
@@ -48,7 +58,7 @@ namespace pid {
   double* actuated = &setpoint::duty;
 }
 
-// GLOBAL VARS
+// GLOBAL VARIABLES
 VL6180X proxsensor;
 //MCP4922 DAC(51,52,53,5);    // (MOSI,SCK,CS,LDAC) define Connections for MEGA_board
 MCP4922 DAC_FXN(11,13,10,5);  // (MOSI,SCK,CS,LDAC) define Connections for UNO_board
@@ -56,13 +66,7 @@ MCP4922 DAC_MFC(11,13,9,5);   // (MOSI,SCK,CS,LDAC) define Connections for UNO_b
 Adafruit_MLX90614 mlx_5deg = Adafruit_MLX90614(0x5A);  // default address of MLX90614 thermopile
 //PID myPID(&pid::Input, &pid::Output, &pid::Setpoint, pid::Kp, pid::Ki, pid::Kd, DIRECT); // DIRECT or REVERSE
 PID myPID(pid::Input, &pid::Output, &pid::Setpoint, pid::Kp, pid::Ki, pid::Kd, DIRECT); // DIRECT or REVERSE
-String inputString = "";         // a string to hold incoming data
-
-const int read_num = 100;
-int read_data[read_num];
-float read_average = 0;
-int read_index = 0;
-int read_total = 0;
+String inputString = "";         // a string to hold incoming Serial communications
 
 // GLOBAL CONSTANTS
 const unsigned long SERIAL_BAUD = 115200; // 4800,9600,14400,19200,38400,57600,115200,0.5M,1.0M,2.0M
@@ -70,7 +74,7 @@ const int PROXIMITY_TIMEOUT = 25; // milliseconds until proximity sensor times o
 const int LOOPDELAY = 1; // milliseconds
 const int DACSTEPS = 4096;
 
-// PINOUT
+// HARDWARE PINOUT
 const int PIN_PHOTO_A = 0;
 const int PIN_PHOTO_B = 1;
 const int PIN_DAC_A = 2; 
@@ -78,7 +82,7 @@ const int PIN_DAC_B = 3;
 const int PIN_PWM = 3;
 
 
-
+// CRC-8-MAXIM LOOKUP TABLE
 static const uint8_t PROGMEM dscrc_table[] = {
       0, 94,188,226, 97, 63,221,131,194,156,126, 32,163,253, 31, 65,
     157,195, 33,127,252,162, 64, 30, 95,  1,227,189, 62, 96,130,220,
@@ -98,6 +102,7 @@ static const uint8_t PROGMEM dscrc_table[] = {
     116, 42,200,150, 21, 75,169,247,182,232, 10, 84,215,137,107, 53};
 
 uint8_t crc8(const uint8_t *addr, uint8_t len)
+// generate CRC8 values; recipient can verify data integrity
 {
   uint8_t crc = 0;
   while (len--) {
@@ -374,83 +379,25 @@ void actuate_inputs() {
   analogWrite(PIN_PWM, mapfloat(setpoint::duty,0,100,0,255));
 }
 
-float mapfloat(float x, long in_min, long in_max, long out_min, long out_max)
-{
- return (x - in_min) * ((float)out_max - out_min) / ((float)in_max - in_min) + out_min;
+int get_crc(String mystring) {
+  // calculate the CRC8 of the string
+  // first, convert string to array of chars (signed ints)
+  char mychars[mystring.length()+1];
+  mystring.toCharArray(mychars,sizeof(mychars));
+  // then, convert chars into unsigned ints
+  uint8_t myuints[sizeof(mychars)];
+  for (int i=0; i < sizeof(mychars); i++) {
+    myuints[i] = (uint8_t) mychars[i];
+  }
+  // finally, calculate the crc of the unsigned ints
+  int mycrc = crc8(myuints,sizeof(myuints));
+  return mycrc;
 }
 
-void addRead(int value)
-{
-  read_total = read_total - read_data[read_index];
-  read_data[read_index] = value;
-  read_total = read_total + read_data[read_index];
-  read_average = ((float)read_total) / read_num;
-  read_index++;
-  if (read_index >= read_num)
-  {
-    read_index = 0;
-  }
-}
-
-
-void setup()
-{
-  setup_serial();
-  setup_watchdog();
-  SPI.begin();
-  Wire.begin();
-
-  // set up VL6180X sensor
-  proxsensor.init();
-  proxsensor.configureDefault();
-  proxsensor.setTimeout(PROXIMITY_TIMEOUT);
-
-  //turn the PID on
-  //pid::Input = &data::photo_a;
-  //pid::Setpoint = 0;
-  //pid::actuated = &setpoint::duty;
-  myPID.SetOutputLimits(0,100);
-  myPID.SetSampleTime(100); // in milliseconds
-  myPID.SetMode(AUTOMATIC);
-
-  actuate_inputs();
-}
-
-void loop()
-{
-  // reset the watchdog timer
-  // if this doesn't occur within WDTO_X, system resets
-  wdt_reset();
-
-  //pid::Input = data::photo_a;
-  if ( myPID.Compute() ) {
-    *pid::actuated = pid::Output;
-    // actuate the system inputs via the digital potentiometers
-    actuate_inputs();
-  }
-  
-  if (Serial.available() > 0) {
-    #if DEBUG
-      Serial.println("bytes available: " + String(Serial.available()));
-    #endif
-    get_serial();
-  }
-
-  // get the timestamp
-  unsigned long ts = millis();
-  
-  // read and save data from sensors
-  data::dac_a = analogRead(PIN_DAC_A);
-  data::dac_b = analogRead(PIN_DAC_B);
-  data::photo_a = analogRead(PIN_PHOTO_A);
-  data::photo_b = analogRead(PIN_PHOTO_B);
-  data::dist = proxsensor.readRangeSingleMillimeters(); // read VL6180X distance
-  data::tamb = mlx_5deg.readAmbientTempC();
-  //addRead(data::dist); // add distance to averaging array
-
+String get_datastring() {
   // build the string from the data
   String mystring = "";
-  mystring += ts;
+  mystring += data::ts;
   mystring += ",\t";
   mystring += setpoint::voltage;
   mystring += ",\t";
@@ -475,18 +422,77 @@ void loop()
   mystring += *pid::Input;
   mystring += ",\t";
   mystring += pid::Output;
+  return mystring;
+}
 
-  // calculate the CRC8 of the string
-  // first, convert string to array of chars (signed ints)
-  char mychars[mystring.length()+1];
-  mystring.toCharArray(mychars,sizeof(mychars));
-  // then, convert chars into unsigned ints
-  uint8_t myuints[sizeof(mychars)];
-  for (int i=0; i < sizeof(mychars); i++) {
-    myuints[i] = (uint8_t) mychars[i];
+float mapfloat(float x, long in_min, long in_max, long out_min, long out_max)
+{
+ return (x - in_min) * ((float)out_max - out_min) / ((float)in_max - in_min) + out_min;
+}
+
+void setup_pid() {
+  //turn the PID on
+  //pid::Input = &data::photo_a;
+  //pid::Setpoint = 0;
+  //pid::actuated = &setpoint::duty;
+  myPID.SetOutputLimits(0,100);
+  myPID.SetSampleTime(100); // in milliseconds
+  myPID.SetMode(AUTOMATIC);
+  actuate_inputs();
+}
+
+void setup_proximity() {
+  // set up VL6180X sensor
+  proxsensor.init();
+  proxsensor.configureDefault();
+  proxsensor.setTimeout(PROXIMITY_TIMEOUT);
+}
+
+void setup()
+{
+  SPI.begin();
+  Wire.begin();
+  setup_serial();
+  setup_watchdog();
+  setup_proximity();
+  setup_pid();
+}
+
+void loop()
+{
+  // reset the watchdog timer
+  // if this doesn't occur within WDTO_X, system resets
+  wdt_reset();
+
+  if ( myPID.Compute() ) {
+    *pid::actuated = pid::Output;
+    // actuate the system inputs via the interfaced hardware
+    actuate_inputs();
   }
-  // finally, calculate the crc of the unsigned ints
-  int mycrc = crc8(myuints,sizeof(myuints));
+  
+  if (Serial.available() > 0) {
+    #if DEBUG
+      Serial.println("bytes available: " + String(Serial.available()));
+    #endif
+    get_serial();
+  }
+
+  // get the timestamp
+  data::ts = millis();
+  
+  // read and save data from sensors
+  data::dac_a = analogRead(PIN_DAC_A);
+  data::dac_b = analogRead(PIN_DAC_B);
+  data::photo_a = analogRead(PIN_PHOTO_A);
+  data::photo_b = analogRead(PIN_PHOTO_B);
+  data::dist = proxsensor.readRangeSingleMillimeters(); // read VL6180X distance
+  data::tamb = mlx_5deg.readAmbientTempC();
+
+  // build the string from the data
+  String mystring = get_datastring();
+
+  // generate the CRC8 of the string
+  int mycrc = get_crc(mystring);
 
   // printing the data string
   Serial.print(mystring);
@@ -496,6 +502,4 @@ void loop()
   Serial.print(mycrc);
   Serial.println();
   delay(LOOPDELAY);
-
 }
-
