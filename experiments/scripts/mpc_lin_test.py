@@ -36,7 +36,8 @@ def get_runopts():
   parser = argparse.ArgumentParser(description="runs MPC",
 			  epilog="Example: python mpc_lin_test.py --quiet")
   parser.add_argument("--quiet", help="silence the solver", action="store_true")
-  parser.add_argument("--fake", help="use fake data", action="store_true")
+  parser.add_argument("--faket", help="use fake temperature data", action="store_true")
+  parser.add_argument("--fakei", help="use fake intensity data", action="store_true")
   runopts = parser.parse_args()
   return runopts
 
@@ -53,7 +54,7 @@ def get_temp(runopts):
   """
   Gets treatment temperature with the Lepton thermal camera
   """
-  if runopts.fake:
+  if runopts.faket:
     return 24
   run = True
   while run:
@@ -82,7 +83,7 @@ def get_intensity(f,runopts):
   """
   Gets optical intensity from the microcontroller
   """
-  if runopts.fake:
+  if runopts.fakei:
     return 5
   a=f.stdout.readline()
   ard=a.decode().split(',')
