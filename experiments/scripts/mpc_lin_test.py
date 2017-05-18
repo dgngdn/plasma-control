@@ -14,7 +14,7 @@ import RPi.GPIO as gpio
 gpio.setwarnings(False)
 import subprocess
 import select
-import scipy.io
+import scipy.io as scio
 from scipy import linalg
 from casadi import *
 # Import core code.
@@ -150,51 +150,50 @@ def gpio_setup():
 
 
 
-
-
-
-
-
-
 save_file=open('control_dat','a+')
 ## SETUP THE MPC
-#system dimension
-nx = 7
-nu = 3
-ny = 2
-nw = 2
+#import model
+Model=scio.loadmat('sys_5sec.mat')
+A=Model['A']
+B=Model['B']
+C=Model['C']
+Delta=int(Model['Ts']) # sampling time, s
+
+nx = int(A.shape[0])
+nu = int(B.shape[1])
+ny = int(C.shape[0])
 nv = ny
 
 # simulation time
-Delta = 1     # sampling time, s
+#Delta = 1     
 
 # parameters for MPC
-N = 20           # prediction horizon
+N = 10           # prediction horizon
 
 # declare casadi variable graph
 x = MX.sym('x',nx)
 u = MX.sym('u',nu)
-w = MX.sym('w',nw)
+#w = MX.sym('w',nw)
 
 # Define system matrices => from data driven subspace ID
-A = NP.array([[  0,    1.0000   ,      0  ,       0  ,       0  ,       0  ,       0],
-              [  0,         0 ,   1.0000   ,      0  ,       0 ,        0 ,        0],
-              [  1.5496 ,  -4.4591,    3.9387  ,  0.1182 ,  -2.6865,   -1.4204,    4.0078],
-              [  0  ,       0    ,     0     ,    0  ,  1.0000,         0   ,      0],
-              [  0 ,        0     ,    0     ,    0  ,       0 ,   1.0000  ,       0],
-              [  0 ,        0      ,   0      ,   0  ,       0 ,        0 ,   1.0000],
-              [  -0.8813,    2.1836 ,  -1.3261 ,  -0.0731 ,   1.5081,    1.3487,   -1.7990]])
+#A = NP.array([[  0,    1.0000   ,      0  ,       0  ,       0  ,       0  ,       0],
+#              [  0,         0 ,   1.0000   ,      0  ,       0 ,        0 ,        0],
+#              [  1.5496 ,  -4.4591,    3.9387  ,  0.1182 ,  -2.6865,   -1.4204,    4.0078],
+#              [  0  ,       0    ,     0     ,    0  ,  1.0000,         0   ,      0],
+#              [  0 ,        0     ,    0     ,    0  ,       0 ,   1.0000  ,       0],
+#              [  0 ,        0      ,   0      ,   0  ,       0 ,        0 ,   1.0000],
+#             [  -0.8813,    2.1836 ,  -1.3261 ,  -0.0731 ,   1.5081,    1.3487,   -1.7990]])
 
-B = NP.array([[0.9099,    0.1478,   -4.4538],
-              [1.1473   , 0.8071,  -4.4349],
-              [ 1.5845 ,   0.8318,   -3.6681],
-              [  5.9034,    3.3445,   32.8287],
-              [ 1.4962,    0.2317 ,   3.1539],
-              [-0.8336 ,  -0.3603 ,  -0.5211],
-              [ 0.0463 ,   0.0354 ,   1.0197]])
+#B = NP.array([[0.9099,    0.1478,   -4.4538],
+#              [1.1473   , 0.8071,  -4.4349],
+#              [ 1.5845 ,   0.8318,   -3.6681],
+#              [  5.9034,    3.3445,   32.8287],
+#              [ 1.4962,    0.2317 ,   3.1539],
+#              [-0.8336 ,  -0.3603 ,  -0.5211],
+#              [ 0.0463 ,   0.0354 ,   1.0197]])
 
-C = NP.array([[   1,     0,     0,     0,     0,     0,     0],
-              [   0,     0,     0,     1,     0,     0,     0]])
+#C = NP.array([[   1,     0,     0,     0,     0,     0,     0],
+#              [   0,     0,     0,     1,     0,     0,     0]])
 
 # steady state values
 uss = [0.0, 0.0, 0.0]
@@ -364,20 +363,23 @@ if __name__ == "__main__":
     # k is the loop instance (incremented each loop)
     if k == delay:
       ## set Y0 as the initial state
-      Y0 = [Ts,Is]
+      #Y0 = [Ts,Is]
+      Y0=[60,87]
       startMPC = True
       print("starting mpc")
     elif k < delay:
       print("Don't start MPC yet...")
+      time.sleep(Delta)
     else:
       print("MPC is running")
-
+    
     # The actual MPC part
     if startMPC:
-      if False:
-      #if k > 100:
+      #if False:
+      if k > 50:
         ### change target
         ztar_k = ztar + NP.array([-4.0,0.0])
+        print("setpoint changed")
       else:
         ztar_k = ztar
       # get measurement
@@ -438,8 +440,8 @@ if __name__ == "__main__":
       print("predicted temperature: {:.2f} intensity: {:.2f}".format(*(Ct.dot(pred).T+Y0).flatten()))
 
       #save_file.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n".format(Ts,Is,*Y,*X,*U))
-      save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(
-                       time.time(),Ts,Is,*Y,*U.flatten()))  ##X is never referenced!
+      save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(
+                       time.time(),Ts,Is,*(Ct.dot(pred).T+Y0).flatten(),*Y,*U.flatten(),*ztar_k))  ##X is never referenced!
       #print()
       save_file.flush()
 
@@ -451,4 +453,5 @@ if __name__ == "__main__":
         time.sleep(Delta - time_el)
     ## increment the loop counter
     k = k + 1
+    print(k)
     print("\n\n")
