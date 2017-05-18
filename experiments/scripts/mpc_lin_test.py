@@ -19,7 +19,7 @@ from scipy import linalg
 from casadi import *
 # Import core code.
 import core
-import pyserial
+import serial
 #import asyncio
 #import serial_asyncio
 #import crcmod
@@ -44,19 +44,30 @@ def get_runopts():
   """
   parser = argparse.ArgumentParser(description="runs MPC",
 			  epilog="Example: python mpc_lin_test.py --quiet")
-  parser.add_argument("--quiet", help="silence the solver", action="store_true")
+  #parser.add_argument("--quiet", help="silence the solver", action="store_true")
   parser.add_argument("--faket", help="use fake temperature data", action="store_true")
   parser.add_argument("--fakei", help="use fake intensity data", action="store_true")
   runopts = parser.parse_args()
   return runopts
 
-def send_inputs(U):
+def send_inputs(device,U):
   """
   Sends input values to the microcontroller to actuate them
   """
   input_string='echo "v,{:.2f}" > /dev/arduino && echo "f,{:.2f}" > /dev/arduino && echo "q,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2)
-  subprocess.call(input_string,  shell=True)
-  print("input: {}".format(input_string))
+  #subprocess.run('echo -e "v,{:.2f}\nf,{:.2f}\nq,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2), shell=True)
+  #device.write("v,{:.2f}\n".format(U[:,0][0]+8).encode('ascii'))
+  subprocess.run('echo "" > /dev/arduino', shell=True)
+  time.sleep(0.100)
+  subprocess.run('echo "v,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8), shell=True)
+  time.sleep(0.100)
+  #device.write("f,{:.2f}\n".format(U[:,1][0]+16).encode('ascii'))
+  subprocess.run('echo "f,{:.2f}" > /dev/arduino'.format(U[:,1][0]+16), shell=True)
+  time.sleep(0.100)
+  #device.write("q,{:.2f}\n".format(U[:,2][0]+1.2).encode('ascii'))
+  subprocess.run('echo "q,{:.2f}" > /dev/arduino'.format(U[:,2][0]+1.2), shell=True)
+  #subprocess.call(input_string,  shell=True)
+  #print("input: {}".format(input_string))
   print("input values: {}".format(U+[8,16,1.2]))
 
 def is_valid(line):
@@ -64,13 +75,14 @@ def is_valid(line):
   Verify that the line is complete and correct
   """
   l = line.split(',')
-  crc = l[-1]
-  data = l[:-1]
+  crc = int(l[-1])
+  data = ','.join(l[:-1])
   return crc_check(data,crc)
 
 def crc_check(data,crc):
-    crc_from_data = crc8("{}\x00".format(data).encode('ascii'))
-    return crc == crc_from_data:
+  crc_from_data = crc8("{}\x00".format(data).encode('ascii'))
+  print("crc:{} calculated: {} data: {}".format(crc,crc_from_data,data))
+  return crc == crc_from_data
 
 def get_temp(runopts):
   """
@@ -88,13 +100,14 @@ def get_temp(runopts):
           l = len(line)
           if (l != 80):
             print("error: should be 80 columns, but we got {}".format(l))
-        curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
-        fname = "{}".format(curtime)
-        Ts = NP.true_divide(NP.amax(data[7:50]),100)-273;
-        #time.sleep(0.5)
+        #curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
+        #fname = "{}".format(curtime)
+        Ts = NP.amax(data) / 100 - 273;
+        #Ts = NP.true_divide(NP.amax(data[7:50]),100)-273;
+        time.sleep(0.1)
         run = False
     except:
-      print("\n\nHardware error on the thermal camera. Lepton restarting...")
+      print("\nHardware error on the thermal camera. Lepton restarting...")
       gpio.output(35, gpio.HIGH)
       time.sleep(0.5)
       gpio.output(35, gpio.LOW)
@@ -105,16 +118,22 @@ def get_intensity(f,runopts):
   """
   Gets optical intensity from the microcontroller
   """
-  if runopts.fake:
+  if runopts.fakei:
     Is = 5
   else:
     run = True
     while run:
-      line = f.readline()
+      try:
+        f.reset_input_buffer()
+        f.readline()
+        line = f.readline().decode('ascii')
         if is_valid(line):
           run = False
-      #a = f.stdout.readline()
-    Is = int(line.decode().split(',')[6])
+        else:
+          print("CRC8 failed. Invalid line!")
+        Is = int(line.split(',')[6])
+      except:
+        pass
   return Is
 
 def gpio_setup():
@@ -284,9 +303,9 @@ opts = {}
 if MySolver == "sqpmethod":
   opts["qpsol"] = "qpoases"
   opts["qpsol_options"] = {"printLevel":"none"}
-  #opts["verbose_init"] = False
-  #opts["print_header"] = False
-  #opts["print_time"] = False
+  opts["verbose_init"] = False
+  opts["print_header"] = False
+  opts["print_time"] = False
   #opts["print_iteration"] = False
 # create NLP solver for MPC problem
 prob = {'f':J, 'x':vertcat(*q), 'g':vertcat(*g)}
@@ -305,9 +324,10 @@ if __name__ == "__main__":
   """
 
   runopts = get_runopts()
-  if runopts.quiet:
-    ## silence the solver
-    solver = nostdout(solver)
+  # this does work, but it breaks the solver!
+  #if runopts.quiet:
+  #  ## silence the solver
+  #  solver = nostdout(solver)
   gpio_setup()
   # shell calls - slow and somewhat brittle
   #f = subprocess.Popen(['tail','-f','./data/temperaturehistory'],\
@@ -315,7 +335,7 @@ if __name__ == "__main__":
   #p = select.poll()
   #p.register(f.stdout)
   # creating a good ol' serial object to read from when we want it
-  f = serial.Serial('/dev/arduino', baudrate=9600)
+  f = serial.Serial('/dev/arduino', baudrate=38400,timeout=1)
 
   #initialize
   Ts = 0
@@ -333,96 +353,98 @@ if __name__ == "__main__":
   while True:
     Ts = get_temp(runopts)
     Is = get_intensity(f,runopts)
-    print("temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
+    print("measured temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
 
     # k is the loop instance (incremented each loop)
     if k == delay:
-        ## set Y0 as the initial state
-        Y0 = [Ts,Is]
-        startMPC = True
-        print("starting mpc")
+      ## set Y0 as the initial state
+      Y0 = [Ts,Is]
+      startMPC = True
+      print("starting mpc")
     elif k < delay:
-        print("Don't start MPC yet...")
+      print("Don't start MPC yet...")
     else:
-        print("MPC is running")
+      print("MPC is running")
 
     # The actual MPC part
     if startMPC:
-        start_time = time.time()
-        if k > 100:
-            ### change target
-            ztar_k = ztar + NP.array([-4.0,0.0])
-        else:
-            ztar_k = ztar
-	      # get measurement
-        Y = NP.array([Ts-Y0[0], Is-Y0[1]])
-        print(Y0)
-        print(Y)
-        # update predictor
-        stack = NP.concatenate((Xhat,Dhat),axis=0)
-        pred = At.dot(stack) + Bt.dot(U.T)
-        err = Y - Ct.dot(pred).T
-        update = pred + Lt.dot(err.T)
-        Xhat = update[0:nx]
-        Dhat = update[nx:]
+      start_time = time.time()
+      if False:
+      #if k > 100:
+        ### change target
+        ztar_k = ztar + NP.array([-4.0,0.0])
+      else:
+        ztar_k = ztar
+      # get measurement
+      Y = NP.array([Ts-Y0[0], Is-Y0[1]])
+      #print(Y0)
+      #print(Y)
+      # update predictor
+      stack = NP.concatenate((Xhat,Dhat),axis=0)
+      pred = At.dot(stack) + Bt.dot(U.T)
+      err = Y - Ct.dot(pred).T
+      update = pred + Lt.dot(err.T)
+      Xhat = update[0:nx]
+      Dhat = update[nx:]
 
-        # target calculator
-        btar = NP.concatenate((Bd.dot(Dhat).T,-H.dot(Cd).dot(Dhat).T+ztar_k),axis=1)
-        tarSol = core.mtimes(linalg.pinv(tarMat),btar.T)
+      # target calculator
+      btar = NP.concatenate((Bd.dot(Dhat).T,-H.dot(Cd).dot(Dhat).T+ztar_k),axis=1)
+      tarSol = core.mtimes(linalg.pinv(tarMat),btar.T)
 
-        Xtar = tarSol[0:nx] #target_state
-        Utar = tarSol[nx:]  #target_input
+      Xtar = tarSol[0:nx] #target_state
+      Utar = tarSol[nx:]  #target_input
+      #  q0[0:nx] = Xhat[0:nx]-Xtar[0:nx]
+      #for i in range(0,len(q0)):
+      #	 q0[i] = Xhat[0][0]-Xtar[0][0]
 
-        #  q0[0:nx] = Xhat[0:nx]-Xtar[0:nx]
-		    #for i in range(0,len(q0)):
-		    #	 q0[i] = Xhat[0][0]-Xtar[0][0]
+      for i in range(nx):
+        q0[i] = Xhat[i][0]-Xtar[i][0]
+      lbq[0:nx] = q0[0:nx]
+      ubq[0:nx] = q0[0:nx]
 
-        for i in range(nx):
-            q0[i] = Xhat[i][0]-Xtar[i][0]
-        lbq[0:nx] = q0[0:nx]
-        ubq[0:nx] = q0[0:nx]
+      # bounds
+      u_lb_update = [u_lb[i]-Utar[i][0] for i in range(nu)]
+      u_ub_update = [u_ub[i]-Utar[i][0] for i in range(nu)]
+      # ONLY WORKS WHEN ALL STATES ARE MEASURED AND C=I
+      x_lb_update = [x_lb[i]-Xtar[i][0] for i in range(nx)]
+      x_ub_update = [x_ub[i]-Xtar[i][0] for i in range(nx)]
 
-        # bounds
-        u_lb_update = [u_lb[i]-Utar[i][0] for i in range(nu)]
-        u_ub_update = [u_ub[i]-Utar[i][0] for i in range(nu)]
-        # ONLY WORKS WHEN ALL STATES ARE MEASURED AND C=I
-        x_lb_update = [x_lb[i]-Xtar[i][0] for i in range(nx)]
-        x_ub_update = [x_ub[i]-Xtar[i][0] for i in range(nx)]
+      for i in range(N):
+        lbq[nx+i*(nx+nu):nx+nu+i*(nx+nu)] = u_lb_update
+        ubq[nx+i*(nx+nu):nx+nu+i*(nx+nu)] = u_ub_update
+        lbq[nx+nu+i*(nx+nu):2*nx+nu+i*(nx+nu)] = x_lb_update
+        ubq[nx+nu+i*(nx+nu):2*nx+nu+i*(nx+nu)] = x_ub_update
 
-        for i in range(N):
-            lbq[nx+i*(nx+nu):nx+nu+i*(nx+nu)] = u_lb_update
-            ubq[nx+i*(nx+nu):nx+nu+i*(nx+nu)] = u_ub_update
-            lbq[nx+nu+i*(nx+nu):2*nx+nu+i*(nx+nu)] = x_lb_update
-            ubq[nx+nu+i*(nx+nu):2*nx+nu+i*(nx+nu)] = x_ub_update
+      try:
+        sol = solver(x0=q0, lbx=lbq, ubx=ubq, lbg=lbg, ubg=ubg)
+        q_opt = sol['x'].full().flatten()
+        u_opt = q_opt[nx:nx+nu]
+        print("We solved a thing!")
+      except Exception as e:
+        u_opt = u_opt
+        print("The solver could not converge! {}".format(e))
 
-        try:
-            sol = solver(x0=q0, lbx=lbq, ubx=ubq, lbg=lbg, ubg=ubg)
-            q_opt = sol['x'].full().flatten()
-            u_opt = q_opt[nx:nx+nu]
-            print("solved a thing!")
-        except:
-            u_opt = u_opt
-            print("\n The solver could not converge! \n\n")
+      U = u_opt + Utar.T
+      Ureal = U + NP.array([8,16,1.2])
+      #print(Ureal.shape)
+      print("sending inputs...")
+      send_inputs(f,U)
+      print("inputs sent!")
+      print("predicted temperature: {:.2f} intensity: {:.2f}".format(*(Ct.dot(pred).T+Y0).flatten()))
 
-        U = u_opt + Utar.T
-        Ureal = U + NP.array([8,16,1.2])
-        #print(Ureal.shape)
-        send_inputs(U)
+      #save_file.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n".format(Ts,Is,*Y,*X,*U))
+      save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(
+                       time.time(),Ts,Is,*Y,*U.flatten()))  ##X is never referenced!
+      #print()
+      save_file.flush()
 
-        print("predictions: {}".format(Ct.dot(pred).T+Y0))
-        #save_file.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n".format(Ts,Is,*Y,*X,*U))
-        save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(
-                         time.time(),Ts,Is,*Y,*U.flatten()))  ##X is never referenced!
-        print()
-        save_file.flush()
-
-        # figure out how long the loop took
-        # if it's not time to run again, delay until it is
-        end_time = time.time()
-        time_el = end_time - start_time
-        if time_el < 1:
-            time.sleep(1 - time_el)
+      # figure out how long the loop took
+      # if it's not time to run again, delay until it is
+      end_time = time.time()
+      time_el = end_time - start_time
+      if time_el < 1:
+        time.sleep(1 - time_el)
     ## increment the loop counter
     k = k + 1
-
+    print("\n\n")
 
