@@ -25,6 +25,8 @@ import serial
 #import crcmod
 import crcmod.predefined
 
+U0 = NP.array([(8.0,16.0,1.2)], dtype=[('v','>f4'),('f','>f4'),('q','>f4')])
+
 crc8 = crcmod.predefined.mkCrcFun('crc-8-maxim')
 
 class DummyFile(object):
@@ -54,21 +56,24 @@ def send_inputs(device,U):
   """
   Sends input values to the microcontroller to actuate them
   """
-  input_string='echo "v,{:.2f}" > /dev/arduino && echo "f,{:.2f}" > /dev/arduino && echo "q,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2)
+  Vn = U[:,0][0]+U0['v'][0]
+  Fn = U[:,1][0]+U0['f'][0]
+  Qn = U[:,2][0]+U0['q'][0]
+  input_string='echo "v,{:.2f}" > /dev/arduino && echo "f,{:.2f}" > /dev/arduino && echo "q,{:.2f}" > /dev/arduino'.format(Vn, Fn, Qn)
   #subprocess.run('echo -e "v,{:.2f}\nf,{:.2f}\nq,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2), shell=True)
   #device.write("v,{:.2f}\n".format(U[:,0][0]+8).encode('ascii'))
   subprocess.run('echo "" > /dev/arduino', shell=True)
   time.sleep(0.100)
-  subprocess.run('echo "v,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8), shell=True)
+  subprocess.run('echo "v,{:.2f}" > /dev/arduino'.format(Vn), shell=True)
   time.sleep(0.100)
   #device.write("f,{:.2f}\n".format(U[:,1][0]+16).encode('ascii'))
-  subprocess.run('echo "f,{:.2f}" > /dev/arduino'.format(U[:,1][0]+16), shell=True)
+  subprocess.run('echo "f,{:.2f}" > /dev/arduino'.format(Fn), shell=True)
   time.sleep(0.100)
   #device.write("q,{:.2f}\n".format(U[:,2][0]+1.2).encode('ascii'))
-  subprocess.run('echo "q,{:.2f}" > /dev/arduino'.format(U[:,2][0]+1.2), shell=True)
+  subprocess.run('echo "q,{:.2f}" > /dev/arduino'.format(Qn), shell=True)
   #subprocess.call(input_string,  shell=True)
   #print("input: {}".format(input_string))
-  print("input values: {}".format(U+[8,16,1.2]))
+  print("input values: {:.2f},{:.2f},{:.2f}".format(Vn,Fn,Qn))
 
 def is_valid(line):
   """
@@ -104,7 +109,7 @@ def get_temp(runopts):
         #fname = "{}".format(curtime)
         Ts = NP.amax(data) / 100 - 273;
         #Ts = NP.true_divide(NP.amax(data[7:50]),100)-273;
-        time.sleep(0.1)
+        time.sleep(0.050)
         run = False
     except:
       print("\nHardware error on the thermal camera. Lepton restarting...")
@@ -351,6 +356,7 @@ if __name__ == "__main__":
   u_opt = [0,0,0]
 
   while True:
+    start_time = time.time()
     Ts = get_temp(runopts)
     Is = get_intensity(f,runopts)
     print("measured temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
@@ -368,7 +374,6 @@ if __name__ == "__main__":
 
     # The actual MPC part
     if startMPC:
-      start_time = time.time()
       if False:
       #if k > 100:
         ### change target
@@ -425,7 +430,7 @@ if __name__ == "__main__":
         print("The solver could not converge! {}".format(e))
 
       U = u_opt + Utar.T
-      Ureal = U + NP.array([8,16,1.2])
+      Ureal = U + NP.array([U0['v'],U0['f'],U0['q']])
       #print(Ureal.shape)
       print("sending inputs...")
       send_inputs(f,U)
@@ -442,9 +447,8 @@ if __name__ == "__main__":
       # if it's not time to run again, delay until it is
       end_time = time.time()
       time_el = end_time - start_time
-      if time_el < 1:
-        time.sleep(1 - time_el)
+      if time_el < Delta:
+        time.sleep(Delta - time_el)
     ## increment the loop counter
     k = k + 1
     print("\n\n")
-
