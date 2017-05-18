@@ -278,8 +278,6 @@ void loop()
   mystring += ',';
   mystring += setpoint::voltage;
   mystring += ',';
-  mystring += setpoint::voltage;
-  mystring += ',';
   mystring += setpoint::frequency;
   mystring += ',';
   mystring += setpoint::flowrate;
