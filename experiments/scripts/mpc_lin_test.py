@@ -9,6 +9,7 @@ import cv2
 import argparse
 from pylepton import Lepton
 import RPi.GPIO as gpio
+gpio.setwarnings(False)
 import subprocess
 import select
 import scipy.io
@@ -16,6 +17,93 @@ from scipy import linalg
 from casadi import *
 # Import core code.
 import core
+
+class DummyFile(object):
+    def write(self, x): pass
+
+def nostdout(func):
+    def wrapper(*args, **kwargs):        
+        save_stdout = sys.stdout
+        sys.stdout = DummyFile()
+        func(*args, **kwargs)
+        sys.stdout = save_stdout
+    return wrapper
+
+def get_runopts():
+  """
+  Gets the arguments provided to the interpreter at runtime
+  """
+  parser = argparse.ArgumentParser(description="runs MPC",
+			  epilog="Example: python mpc_lin_test.py --quiet")
+  parser.add_argument("--quiet", help="silence the solver", action="store_true")
+  parser.add_argument("--fake", help="use fake data", action="store_true")
+  runopts = parser.parse_args()
+  return runopts
+
+def send_inputs(U):
+  """
+  Sends input values to the microcontroller to actuate them
+  """
+  input_string='echo "v,{:.2f}" > /dev/arduino && echo "f,{:.2f}" > /dev/arduino && echo "q,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2)
+  subprocess.call(input_string,  shell=True)
+  print("input: {}".format(input_string))
+  print("input values: {}".format(U+[8,16,1.2]))
+
+def get_temp(runopts):
+  """
+  Gets treatment temperature with the Lepton thermal camera
+  """
+  if runopts.fake:
+    return 24
+  run = True
+  while run:
+    try:
+      with Lepton("/dev/spidev0.1") as l:
+        data,_ = l.capture(retry_limit = 3)
+      if l is not None:
+        for line in data:
+          l = len(line)
+          if (l != 80):
+            print("error: should be 80 columns, but we got {}".format(l))
+        curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
+        fname = "{}".format(curtime)
+        Ts = NP.true_divide(NP.amax(data[7:50]),100)-273;
+        #time.sleep(0.5)
+        run = False
+    except:
+      print("\n\nHardware error on the thermal camera. Lepton restarting...")
+      gpio.output(35, gpio.HIGH)
+      time.sleep(0.5)
+      gpio.output(35, gpio.LOW)
+      print("Lepton restart completed!\n\n")
+  return Ts
+
+def get_intensity(f,runopts):
+  """
+  Gets optical intensity from the microcontroller
+  """
+  if runopts.fake:
+    return 5
+  a=f.stdout.readline()
+  ard=a.decode().split(',')
+  Is=int(ard[6])
+  print("temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
+  return Is
+
+def gpio_setup():
+  gpio.setmode(gpio.BOARD)
+  gpio.setup(35, gpio.OUT)
+  gpio.output(35, gpio.HIGH)
+
+
+
+
+
+
+
+
+
+
 
 save_file=open('control_dat','a+')
 ## SETUP THE MPC
@@ -169,6 +257,10 @@ opts = {}
 if MySolver == "sqpmethod":
   opts["qpsol"] = "qpoases"
   opts["qpsol_options"] = {"printLevel":"none"}
+  #opts["verbose_init"] = False
+  #opts["print_header"] = False
+  #opts["print_time"] = False
+  #opts["print_iteration"] = False
 # create NLP solver for MPC problem
 prob = {'f':J, 'x':vertcat(*q), 'g':vertcat(*g)}
 solver = nlpsol('solver', MySolver, prob, opts)
@@ -176,14 +268,22 @@ solver = nlpsol('solver', MySolver, prob, opts)
 X = []
 U = []
 Y = []
-## RUN THE LOOP
+
 
 if __name__ == "__main__":
-  gpio.setmode(gpio.BOARD)
-  gpio.setup(35, gpio.OUT)
-  gpio.output(35, gpio.HIGH)
-  f = subprocess.Popen(['tail','-F','./data/temperaturehistory'],\
-  stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+  """
+  Collect data from the system, feed it into an MPC algorithm,
+  solve an optimization problem, and then feed the results
+  back into the system
+  """
+
+  runopts = get_runopts()
+  if runopts.quiet:
+    ## silence the solver
+    solver = nostdout(solver)
+  gpio_setup()
+  f = subprocess.Popen(['tail','-f','./data/temperaturehistory'],\
+          stdout=subprocess.PIPE,stderr=subprocess.PIPE)
   p = select.poll()
   p.register(f.stdout)
 
@@ -199,39 +299,21 @@ if __name__ == "__main__":
   Dhat=NP.zeros((nd,1))
   U=NP.zeros((1,nu))
   u_opt=[0,0,0]
-  run = True
-  while run:
-    try:
-      with Lepton("/dev/spidev0.1") as l:
-        data,_ = l.capture(retry_limit = 3)
-      if l is not None:
-        for line in data:
-          l = len(line)
-          if (l != 80):
-            print("error: should be 80 columns, but we got {}".format(l))
-        curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
-        fname = "{}".format(curtime)
-        Ts=NP.true_divide(NP.amax(data[7:50]),100)-273;
-        #time.sleep(0.5)
-        
-		
-    except:
-      print("an error occurred. hardware restart...")
-      gpio.output(35, gpio.HIGH)
-      time.sleep(0.5)
-      gpio.output(35, gpio.LOW)
-      print("hardware restart completed")
 
-    
-    a=f.stdout.readline()
-    ard=a.decode().split(',')
-    Is=ard[6]
-    print(Ts,Is)
+  while True:
+    Ts = get_temp(runopts)
+    Is = get_intensity(f,runopts)
 
     # k is the loop instance (incremented each loop)
     if k==delay:
-        Y0=[float(Ts),float(Is)]
+        ## set Y0 as the initial state
+        Y0=[Ts,Is]
         startMPC=1
+        print("starting mpc")
+    elif k < delay:
+        print("Don't start MPC yet...")
+    else:
+        print("MPC is running")
 
     # The actual MPC part
     if startMPC==1:
@@ -241,9 +323,10 @@ if __name__ == "__main__":
             ztar_k = ztar + NP.array([-4.0,0.0])
         else:
             ztar_k = ztar
-	# get measurement
-        Y=NP.array([Ts-Y0[0], float(Is)-Y0[1]])
-        print(type(Y))
+	      # get measurement
+        Y=NP.array([Ts-Y0[0], Is-Y0[1]])
+        print(Y0)
+        print(Y)
         # update predictor
         stack = NP.concatenate((Xhat,Dhat),axis=0)
         pred = At.dot(stack) + Bt.dot(U.T)
@@ -260,8 +343,8 @@ if __name__ == "__main__":
         Utar = tarSol[nx:]  #target_input
       
         #  q0[0:nx] = Xhat[0:nx]-Xtar[0:nx]
-		#for i in range(0,len(q0)):
-		#	q0[i] = Xhat[0][0]-Xtar[0][0]
+		    #for i in range(0,len(q0)):
+		    #	 q0[i] = Xhat[0][0]-Xtar[0][0]
         
         for i in range(nx):
             q0[i] = Xhat[i][0]-Xtar[i][0]
@@ -287,20 +370,22 @@ if __name__ == "__main__":
             sol = solver(x0=q0, lbx=lbq, ubx=ubq, lbg=lbg, ubg=ubg)
             q_opt = sol['x'].full().flatten()
             u_opt = q_opt[nx:nx+nu]
+            print("solved a thing!")
         except:
             u_opt=u_opt
-            print('oops')
+            print("\n The solver could not converge! \n\n")
 
         U = u_opt + Utar.T
         Ureal=U+NP.array([8,16,1.2])
-        print(Ureal.shape)
-        input_string=('echo "v,%s" > /dev/arduino && echo "f,%s" > /dev/arduino && echo "q,%s" > /dev/arduino' \
-            % (U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2))
-        subprocess.call(input_string,  shell=True)
-        print(input_string)
-        print(U+[8,16,1.2])
-        print(Ct.dot(pred).T+Y0)
-        save_file.write("{},{},{},{},{}\n".format(Ts,float(Is),Y,X,U))
+        #print(Ureal.shape)
+        send_inputs(U)
+        
+        print("predictions: {}".format(Ct.dot(pred).T+Y0))
+        #save_file.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n".format(Ts,Is,*Y,*X,*U))
+        save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(
+                         time.time(),Ts,Is,*Y,*U.flatten()))  ##X is never referenced!
+        print()
+        save_file.flush()
 
         # figure out how long the loop took
         # if it's not time to run again, delay until it is
@@ -310,3 +395,5 @@ if __name__ == "__main__":
             time.sleep(1-time_el)
     ## increment the loop counter
     k=k+1
+
+
