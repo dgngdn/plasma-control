@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.5
+
 import sys
 sys.dont_write_bytecode = True
 
@@ -17,6 +19,13 @@ from scipy import linalg
 from casadi import *
 # Import core code.
 import core
+import pyserial
+#import asyncio
+#import serial_asyncio
+#import crcmod
+import crcmod.predefined
+
+crc8 = crcmod.predefined.mkCrcFun('crc-8-maxim')
 
 class DummyFile(object):
     def write(self, x): pass
@@ -48,6 +57,19 @@ def send_inputs(U):
   subprocess.call(input_string,  shell=True)
   print("input: {}".format(input_string))
   print("input values: {}".format(U+[8,16,1.2]))
+
+def is_valid(line):
+  """
+  Verify that the line is complete and correct
+  """
+  l = line.split(',')
+  crc = l[-1]
+  data = l[:-1]
+  return crc_check(data,crc)
+
+def crc_check(data,crc):
+    crc_from_data = crc8("{}\x00".format(data).encode('ascii'))
+    return crc == crc_from_data:
 
 def get_temp(runopts):
   """
@@ -83,11 +105,15 @@ def get_intensity(f,runopts):
   Gets optical intensity from the microcontroller
   """
   if runopts.fake:
-    return 5
-  a=f.stdout.readline()
-  ard=a.decode().split(',')
-  Is=int(ard[6])
-  print("temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
+    Is = 5
+  else:
+    run = True
+    while run:
+      line = f.readline()
+        if is_valid(line):
+          run = False
+      #a = f.stdout.readline()
+    Is = int(line.decode().split(',')[6])
   return Is
 
 def gpio_setup():
@@ -282,33 +308,37 @@ if __name__ == "__main__":
     ## silence the solver
     solver = nostdout(solver)
   gpio_setup()
-  f = subprocess.Popen(['tail','-f','./data/temperaturehistory'],\
-          stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-  p = select.poll()
-  p.register(f.stdout)
+  # shell calls - slow and somewhat brittle
+  #f = subprocess.Popen(['tail','-f','./data/temperaturehistory'],\
+  #        stdout = subprocess.PIPE,stderr=subprocess.PIPE)
+  #p = select.poll()
+  #p.register(f.stdout)
+  # creating a good ol' serial object to read from when we want it
+  f = serial.Serial('/dev/arduino', baudrate=9600)
 
   #initialize
-  Ts=0
-  first_run=0
-  delay=10
-  k=0 
-  Y0=0
-  startMPC=0
-  Xhat=NP.zeros((nx,1))
-  Uhat=NP.zeros((1,nu))
-  Dhat=NP.zeros((nd,1))
-  U=NP.zeros((1,nu))
-  u_opt=[0,0,0]
+  Ts = 0
+  first_run = 0
+  delay = 10
+  k = 0
+  Y0 = 0
+  startMPC = 0
+  Xhat = NP.zeros((nx,1))
+  Uhat = NP.zeros((1,nu))
+  Dhat = NP.zeros((nd,1))
+  U = NP.zeros((1,nu))
+  u_opt = [0,0,0]
 
   while True:
     Ts = get_temp(runopts)
     Is = get_intensity(f,runopts)
+    print("temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
 
     # k is the loop instance (incremented each loop)
-    if k==delay:
+    if k == delay:
         ## set Y0 as the initial state
-        Y0=[Ts,Is]
-        startMPC=1
+        Y0 = [Ts,Is]
+        startMPC = True
         print("starting mpc")
     elif k < delay:
         print("Don't start MPC yet...")
@@ -316,15 +346,15 @@ if __name__ == "__main__":
         print("MPC is running")
 
     # The actual MPC part
-    if startMPC==1:
-        start_time=time.time()
+    if startMPC:
+        start_time = time.time()
         if k > 100:
             ### change target
             ztar_k = ztar + NP.array([-4.0,0.0])
         else:
             ztar_k = ztar
 	      # get measurement
-        Y=NP.array([Ts-Y0[0], Is-Y0[1]])
+        Y = NP.array([Ts-Y0[0], Is-Y0[1]])
         print(Y0)
         print(Y)
         # update predictor
@@ -336,8 +366,8 @@ if __name__ == "__main__":
         Dhat = update[nx:]
        
         # target calculator
-        btar=NP.concatenate((Bd.dot(Dhat).T,-H.dot(Cd).dot(Dhat).T+ztar_k),axis=1)
-        tarSol=core.mtimes(linalg.pinv(tarMat),btar.T)
+        btar = NP.concatenate((Bd.dot(Dhat).T,-H.dot(Cd).dot(Dhat).T+ztar_k),axis=1)
+        tarSol = core.mtimes(linalg.pinv(tarMat),btar.T)
 
         Xtar = tarSol[0:nx] #target_state
         Utar = tarSol[nx:]  #target_input
@@ -372,11 +402,11 @@ if __name__ == "__main__":
             u_opt = q_opt[nx:nx+nu]
             print("solved a thing!")
         except:
-            u_opt=u_opt
+            u_opt = u_opt
             print("\n The solver could not converge! \n\n")
 
         U = u_opt + Utar.T
-        Ureal=U+NP.array([8,16,1.2])
+        Ureal = U + NP.array([8,16,1.2])
         #print(Ureal.shape)
         send_inputs(U)
         
@@ -389,11 +419,11 @@ if __name__ == "__main__":
 
         # figure out how long the loop took
         # if it's not time to run again, delay until it is
-        end_time=time.time()
-        time_el=end_time-start_time
+        end_time = time.time()
+        time_el = end_time - start_time
         if time_el < 1:
-            time.sleep(1-time_el)
+            time.sleep(1 - time_el)
     ## increment the loop counter
-    k=k+1
+    k = k + 1
 
 
