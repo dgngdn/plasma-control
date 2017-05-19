@@ -233,7 +233,7 @@ Lstage = core.mtimes(x.T,Qx,x) + core.mtimes(u.T,Ru,u)
 MPC_dynamics = Function("MPC_dynamics", [x,u], [core.mtimes(A,x) + core.mtimes(B,u),Lstage])
 
 # bounds on outputs
-Ts_lb = -8;     Ts_ub = 3
+Ts_lb = -8;     Ts_ub = 8
 Is_lb = -40;     Is_ub = 20
 
 x_ub=[Ts_ub, inf, inf, Is_ub, inf, inf, inf]
@@ -321,7 +321,9 @@ solver=qpsol('solver','qpoases',prob)
 X = []
 U = []
 Y = []
-
+Y0=[60,87] #steady state values
+Ts=Y0[0]
+Is=Y0[1]
 
 if __name__ == "__main__":
   """
@@ -345,11 +347,9 @@ if __name__ == "__main__":
   f = serial.Serial('/dev/arduino', baudrate=38400,timeout=1)
 
   #initialize
-  Y0=[60,87] #steady state values
-  Ts=Y0[0]
-  Is=Y0[1]
+
   first_run = 0
-  delay = 2
+  delay = 10
   k = 0
   startMPC = 0
   Xhat = NP.zeros((nx,1))
@@ -367,10 +367,10 @@ if __name__ == "__main__":
     if time_el < Delta-0.5:
         Ts_i = get_temp(runopts)
         Is_i = get_intensity(f,runopts)
-        Ts_raw = NP.append(Ts_raw,Ts_i)
-        Is_raw = NP.append(Is_raw,Is_i)
-        #Ts=0.8802*Ts+Ts_i*0.1198
-        #Is=int(0.8802*Is+Is_i*1198)
+        #Ts_raw = NP.append(Ts_raw,Ts_i)
+        #Is_raw = NP.append(Is_raw,Is_i)
+        Ts=0.95*Ts_i+Ts*0.05
+        Is=int(0.95*Is_i+Is*0.05)
         #print(Ts,Is)
         startMPC = False
        # print('averaging inputs...')
@@ -385,10 +385,10 @@ if __name__ == "__main__":
         print(k)
         start_time = time.time()
         #print(Ts_raw)
-        Ts=NP.mean(Ts_raw)
-        Is=int(NP.mean(Is_raw))
-        Ts_raw=[]
-        Is_raw=[]
+        #Ts=NP.mean(Ts_raw)
+        #Is=int(NP.mean(Is_raw))
+        #Ts_raw=[]
+        #Is_raw=[]
         print("measured temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
  # k is the loop instance (incremented each loop)
         if k < delay:
@@ -403,11 +403,11 @@ if __name__ == "__main__":
     if startMPC:
       #if False:
       if k > 100:
-        ztar_k = ztar + NP.array([0.0,15.0])
+        ztar_k = ztar + NP.array([-4.0,10.0])
         print("setpoint changed")
       elif k > 50:
         ### change target
-        ztar_k = ztar + NP.array([0.0,15.0])
+        ztar_k = ztar + NP.array([-4.0,0.0])
         print("setpoint changed")
       else:
         ztar_k = ztar

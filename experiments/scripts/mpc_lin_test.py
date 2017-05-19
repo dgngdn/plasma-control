@@ -232,8 +232,8 @@ Lstage = core.mtimes(x.T,Qx,x) + core.mtimes(u.T,Ru,u)
 MPC_dynamics = Function("MPC_dynamics", [x,u], [core.mtimes(A,x) + core.mtimes(B,u),Lstage])
 
 # bounds on outputs
-Ts_lb = -5;     Ts_ub = 5
-Is_lb = -30;     Is_ub = 30
+Ts_lb = -15;     Ts_ub = 8
+Is_lb = -40;     Is_ub = 20
 
 x_ub=[Ts_ub, inf, inf, Is_ub, inf, inf, inf]
 x_lb=[Ts_lb, -inf, -inf, Is_lb, -inf, -inf, -inf]
@@ -313,7 +313,9 @@ if MySolver == "sqpmethod":
   #opts["print_iteration"] = False
 # create NLP solver for MPC problem
 prob = {'f':J, 'x':vertcat(*q), 'g':vertcat(*g)}
-solver = nlpsol('solver', MySolver, prob, opts)
+
+solver=qpsol('solver','qpoases',prob)
+#solver = nlpsol('solver', MySolver, prob, opts)
 
 X = []
 U = []
@@ -376,9 +378,14 @@ if __name__ == "__main__":
     # The actual MPC part
     if startMPC:
       #if False:
-      if k > 50:
+      if k > 100:
+       # ztar_k = ztar + NP.array([-4.0,10.0])
+        ztar_k = ztar + NP.array([-8.0,15.0])
+        print("setpoint changed again")
+      elif k > 50:
         ### change target
-        ztar_k = ztar + NP.array([-4.0,0.0])
+        #ztar_k = ztar + NP.array([-4.0,0.0])
+        ztar_k = ztar + NP.array([-8.0,0.0])
         print("setpoint changed")
       else:
         ztar_k = ztar
@@ -439,16 +446,15 @@ if __name__ == "__main__":
       print("inputs sent!")
       print("predicted temperature: {:.2f} intensity: {:.2f}".format(*(Ct.dot(pred).T+Y0).flatten()))
 
-      #save_file.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n".format(Ts,Is,*Y,*X,*U))
-      save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(
-                       time.time(),Ts,Is,*(Ct.dot(pred).T+Y0).flatten(),*Y,*U.flatten(),*ztar_k))  ##X is never referenced!
-      #print()
-      save_file.flush()
-
+   
       # figure out how long the loop took
       # if it's not time to run again, delay until it is
       end_time = time.time()
       time_el = end_time - start_time
+      #save_file.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n".format(Ts,Is,*Y,*X,*U))
+      save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(time.time(),Ts,Is,*(Ct.dot(pred).T+Y0).flatten(),*Y,*U.flatten(),*ztar_k,time_el))  ##X is never referenced!
+      #print()
+      save_file.flush()
       if time_el < Delta:
         time.sleep(Delta - time_el)
     ## increment the loop counter

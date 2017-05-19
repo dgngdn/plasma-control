@@ -378,11 +378,13 @@ if __name__ == "__main__":
     if startMPC:
       #if False:
       if k > 100:
-        ztar_k = ztar + NP.array([-4.0,10.0])
-        print("setpoint changed")
+       # ztar_k = ztar + NP.array([-4.0,10.0])
+        ztar_k = ztar + NP.array([-8.0,15.0])
+        print("setpoint changed again")
       elif k > 50:
         ### change target
-        ztar_k = ztar + NP.array([-4.0,0.0])
+        #ztar_k = ztar + NP.array([-4.0,0.0])
+        ztar_k = ztar + NP.array([-8.0,0.0])
         print("setpoint changed")
       else:
         ztar_k = ztar
