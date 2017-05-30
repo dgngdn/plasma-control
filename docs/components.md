@@ -1,3 +1,35 @@
+
+<!-- toc orderedList:0 depthFrom:1 depthTo:6 -->
+
+* [OP AMPS](#op-amps)
+  * [Parameters](#parameters)
+    * [input bias current](#input-bias-current)
+    * [input offset voltage](#input-offset-voltage)
+    * [input voltage range](#input-voltage-range)
+    * [output voltage range](#output-voltage-range)
+    * [input impedance](#input-impedance)
+  * [stability](#stability)
+    * [total harmonic distortion](#total-harmonic-distortion)
+    * [frequency response](#frequency-response)
+    * [short circuit protection](#short-circuit-protection)
+  * [Example Devices](#example-devices)
+    * [MC34072, MC33072](#mc34072-mc33072)
+    * [INA126](#ina126)
+    * [TL071](#tl071)
+    * [LM741](#lm741)
+    * [LM358](#lm358)
+    * [LM339 - dedicated comparator](#lm339-dedicated-comparator)
+  * [Use Cases](#use-cases)
+    * [JFET vs Bipolar Inputs](#jfet-vs-bipolar-inputs)
+* [DIRECT DIGITAL SYNTHESIS](#direct-digital-synthesis)
+  * [AD9834 / AD9835](#ad9834-ad9835)
+  * [AD9837](#ad9837)
+  * [AD9850](#ad9850)
+  * [Other Notes](#other-notes)
+
+<!-- tocstop -->
+
+
 # OP AMPS
 
 ## Parameters
@@ -181,3 +213,95 @@ JFET Properties
 
 
 
+# DIRECT DIGITAL SYNTHESIS
+
+## AD9834 / AD9835
+
+AD9834 has a full-scale adjust pin
+http://www.roboternetz.de/community/threads/54584-Funktionsgenerator-mit-einem-AD9835
+
+from "Analog Devices CN-0156: Amplitude Control Circuit for AD9834 Waveform Generator (DDS)" http://www.analog.com/media/en/reference-design-documentation/reference-designs/CN0156.pdf
+
+"Capability for phase modulation and frequency modulation is provided internally in the AD9834. However, in order to modulate the amplitude of the output signal, a low power DAC or digital potentiometer is required to set the full-scale current. A voltage output DAC can be used to drive the FS ADJUST pin of the AD9834 through a series resistor. This determines the magnitude of the full-scale DAC current."
+
+    The full-scale current from the DAC is a multiple of the
+    reference current. For example, the full-scale current of the
+    AD9834 is
+    I(FULLSCALE) = 18 * VREF / RSET
+    If FS ADJUST is connected to a varying voltage, VDAC, the fullscale
+    current is
+    I(FULLSCALE) = 18 * (VREF-VDAC) / RSET
+    Varying VDAC varies the full-scale current and, therefore, the
+    voltage output from the DDS device. You can provide this
+    varying voltage by using a voltage-output DAC
+
+AD9835 does not:
+
+"The AD9833 offers the same functionality of the AD9834 without the amplitude modulation capability."
+
+
+## AD9837
+
+datasheet: http://www.analog.com/media/en/technical-documentation/data-sheets/AD9837.PDF
+
+The AD9837 has a FIXED internal load resistance of 200 ohms.
+
+Vref is fixed
+Rset is internal
+N is fixed
+RL is fixed
+
+so what CAN we change?
+
+The block diagram has a 'full-scale control' block, but only the COMP pin is available.
+
+pin 1 COMP - "DAC Bias Pin. This pin is used for decoupling the DAC bias voltage."
+
+The test circuit connects COMP to VDD via a 10nF capacitor.
+
+The chip is described as "fully capable of a broad range of simple and complex modulation schemes"... how?  I think they mean frequency and phase shift keying.
+
+VDD = 2.3 V to 5.5 V
+What happens if we decouple to something smaller than VDD?
+
+Probably, the best option here is going to be putting a digital potentiometer in the feedback of an op amp.  Adjust the gain of the op amp to adjust the amplitude output.
+
+## AD9850
+
+datasheet: 	http://www.analog.com/media/en/technical-documentation/data-sheets/AD9850.pdf
+page: 		http://www.analog.com/en/products/rf-microwave/direct-digital-synthesis/ad9850.html
+
+Rset is external and can be used to amplitude modulate the signal:
+
+AN-423: Amplitude Modulation of the AD9850 Direct Digital Synthesizer
+http://www.analog.com/media/en/technical-documentation/application-notes/AN-423.pdf
+
+"The AD9850 DDS output current (20 mA maximum) is normally set with a fixed resistor from the RSET (Pin 12) input to ground."
+
+"Finally, those persons desiring digital control of the AD9850 DAC amplitude may wish to consider digital potentiometers in the 50 k ohm to 100 k ohm range."
+
+from the datasheet, Iout = 10mA when Rset is 3.9 kohm.  Iout = 32*1.248 V / Rset.
+
+The absolute maximum Iout is 30mA, but the datasheet recommends 20mA with Rset = 1.95 kohm.
+
+This simple breakout implements this chip: https://smile.amazon.com/gp/product/B0085N592S/
+
+## Other Notes
+
+http://www.electronicdesign.com/boards/digital-potentiometers-vary-amplitude-dds-devices
+Digital Potentiometers Vary Amplitude In DDS Devices
+
+"Amplitude modulation can be performed external to the DDS device through various methods. The analog output of the DDS device is given by:
+
+VREF/RSET * N * RL
+
+where VREF is the reference voltage;
+RSET is the external resistor used to set up the reference current in the DAC;
+N is an integer amount by which the reference current in the DAC is scaled up;
+RL is the load resistor that converts the current output from the DAC into a voltage."
+
+"The figure shows the AD9831 being used for amplitude modulation along with the AD8400 (50-kΩ version), both parts from Analog Devices. The AD9831 typically uses an RSET resistance of 3.9 kΩ. With a reference voltage of 1.21 V, the reference current in the DAC (VREF/RSET) usually equals 0.3 mA. Because N has a value of 12.5 for the AD9831, the full-scale current equals 3.88 mA. This gives a maximum analog output voltage of 1.16 V (RL = 300 Ω)."
+
+"For higher-frequency applications, the AD9835 or AD9830 can be employed. These devices can operate with a master clock of 50 MHz. For applications such as portable equipment, where power consumption needs to be minimized, the AD9831, AD9832, and AD8400 are fully specified for operation with 3-V power supplies."
+
+----
