@@ -26,6 +26,13 @@
   * [AD9837](#ad9837)
   * [AD9850](#ad9850)
   * [Other Notes](#other-notes)
+* [VOLTAGE-CONTROLLED RESISTORS](#voltage-controlled-resistors)
+  * [JFET](#jfet)
+  * [MOSFET](#mosfet)
+  * [References](#references)
+* [TO SORT](#to-sort)
+  * [Optoisolators](#optoisolators)
+  * [Op Amps](#op-amps-1)
 
 <!-- tocstop -->
 
@@ -304,4 +311,100 @@ RL is the load resistor that converts the current output from the DAC into a vol
 
 "For higher-frequency applications, the AD9835 or AD9830 can be employed. These devices can operate with a master clock of 50 MHz. For applications such as portable equipment, where power consumption needs to be minimized, the AD9831, AD9832, and AD8400 are fully specified for operation with 3-V power supplies."
 
-----
+
+
+# VOLTAGE-CONTROLLED RESISTORS
+
+## JFET
+
+In implementing a voltage-controlled resistor, one option is to use a P-channel JFET.
+
+A typical example is the [2N5461](https://www.jameco.com/Jameco/Products/ProdDS/253905.pdf) JFET.  This fully-symmetrical, reversible device is normally-on at V(GS) = 0; it can be turned off by raising V(GS) toward the positive cutoff voltage.
+
+For a given value of V(GS), the transistor will have a range of values for V(DS) in which V(DS) and I(DS) are linearly related.  The transistor is acting like a resistor—the slope of the IV curve is the inverse of the resistance.  When the device is "fully on" (when V(GS) ~ 0 for a JFET), this resistance is low and the slope of this line is high; as V(GS) is changed to turn the device "partially off", this resistance increases and the slope decreases.  When V(GS) passes the pinchoff voltage Vp, the resistance becomes very high, the device is "fully off", and no current flows for any value of V(DS).
+
+The device only operates linear in the "linear" or "ohmic" (aka "triode", "VCR") region. "Linear" describes the relationship between V(DS) and I(DS), not the relationship between V(GS) and I(DS).  In the linear region, I(DS) is strongly dependent on V(DS) and weakly dependent on V(GS).  The linear region comprises the zone in which V(DS) < V(GS) - V(p), which for most devices is quite small.
+
+For sufficiently high values of V(DS), the device operates in the "saturation" region.  In this region, I(DS) is strongly dependent on V(GS) and weakly dependent on V(DS).  The current flow is under the control of the gate, but the current-voltage relationship is NOT linear.  The current falls to zero for values of V(GS) beyond the pinchoff voltage.  This relationship can be approximated as I(DS) = I(DS,sat)*(1-V(GS)/V(p))**2.  While the device can be thought of as a voltage-controlled resistor in the linear region, it acts instead as a voltage-controlled nonlinear current source in the saturation region.
+
+
+## MOSFET
+
+The V(GS) to I(DS) transfer characteristics for an N-channel MOSFET like the [2N7000](https://www.onsemi.com/pub/Collateral/2N7000-D.PDF) is more linear than for the JFET described above, especially near the threshold voltage.
+
+The drain-source on-resistance is around 5 ohms, with a threshold voltage of around 2.5VDC.  With V(DS) = 10V @25C, I(DS) slews from 0 to 1 amp from V(GS) = 2.5 and 8V.
+
+An Application Note shows how to use the 2N7000 as a voltage-controlled resistor:
+
+"The input voltage to Q1 required to fully modulate the AD9850 output is approximately 1.5 volts p-p and is dc offset by approximately 2.3 volts"
+
+The control signals shown in the application note are 0-3V DC signals.  What is V(DS) in this circuit?  This is provided by pin 12 on the AD9850: 1.248 V, I think!  This would definitely operate the 2N7000 in the triode region.
+
+
+## References
+
++ https://en.wikipedia.org/wiki/JFET
++ [2N5461](https://www.jameco.com/Jameco/Products/ProdDS/253905.pdf) JFET
++ https://en.wikipedia.org/wiki/2N7000
++ https://www.onsemi.com/pub/Collateral/2N7000-D.PDF
++ [FETs as voltage-controlled resistors](http://www.vishay.com/docs/70598/70598.pdf)
++ [Lecture 31: JFETs as Variable Resistors](http://whites.sdsmt.edu/classes/ee322/class_notes/322Lecture31.pdf)
++ [A Linear Gain Controlled Amplifier with JFET as VCR](https://www.fairchildsemi.com/application-notes/AN/AN-6603.pdf)
++ [Amplitude Modulation of the AD9850 Direct Digital Synthesizer with 2N7000 MOSFET](http://www.analog.com/media/en/technical-documentation/application-notes/AN-423.pdf)
+
+
+
+# TO SORT
+
+Vdd, Vss, Vee
+https://electronics.stackexchange.com/questions/17382/what-is-the-difference-between-v-cc-v-dd-v-ee-v-ss
+
+LM741
+http://www.ti.com/product/lm741
+http://www.ti.com/lit/ds/symlink/lm741.pdf
+
+TL072
+http://www.ti.com/product/TL072
+http://www.ti.com/lit/ds/symlink/tl072.pdf
+
+LM(1,2,3)58
+http://www.ti.com/lit/ds/symlink/lm158-n.pdf
+
+MC34072
+http://www.onsemi.com/PowerSolutions/product.do?id=MC34072
+
+CD4016, CD4066
+http://www.ti.com/product/CD4016B
+http://www.ti.com/product/CD4066B
+http://www.ti.com/lit/ds/symlink/cd4066b.pdf
+http://tech.thetonegod.com/switches/switches.html
+https://en.wikibooks.org/wiki/Practical_Electronics/IC/4016
+http://www.cedmagic.com/tech-info/data/cd4016.pdf
+
+## Optoisolators
+
+Tutorial Basics
+https://en.wikipedia.org/wiki/Opto-isolator
+http://www.electronics-tutorials.ws/blog/optocoupler.html
+
+
+4N29, 4N30, 4N31, 4N32, 4N33
+https://www.jameco.com/Jameco/Products/ProdDS/41030.pdf
+
+4N35, 4N36, 4N37
+https://www.jameco.com/Jameco/Products/ProdDS/41056.pdf
+https://www.jameco.com/z/4N35-Major-Brands-Optocoupler-DC-Input-1-Channel-Trans-W-Base-DC-Output-6-Pin-PDIP_41056.html
+
+4N25
+https://www.jameco.com/z/4N25-Major-Brands-Optocoupler-DC-Input-1-Channel-Trans-W-Base-DC-Output-6-Pin-PDIP_40985.html
+
+PS2501
+https://www.jameco.com/z/PS2501-1-Major-Brands-NPN-PHOTOTRANSISTOR-OUTPUT-DIP-4_320653.html
+https://www.jameco.com/Jameco/Products/ProdDS/320653NEC.pdf
+
+
+## Op Amps
+
+Uses:
++ Comparator http://www.electronics-tutorials.ws/opamp/op-amp-comparator.html
++
