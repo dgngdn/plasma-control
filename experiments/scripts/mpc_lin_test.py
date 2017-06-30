@@ -233,7 +233,7 @@ MPC_dynamics = Function("MPC_dynamics", [x,u], [core.mtimes(A,x) + core.mtimes(B
 
 # bounds on outputs
 Ts_lb = -15;     Ts_ub = 8
-Is_lb = -40;     Is_ub = 20
+Is_lb = -40;     Is_ub = 25
 
 x_ub=[Ts_ub, inf, inf, Is_ub, inf, inf, inf]
 x_lb=[Ts_lb, -inf, -inf, Is_lb, -inf, -inf, -inf]
@@ -380,12 +380,14 @@ if __name__ == "__main__":
       #if False:
       if k > 100:
        # ztar_k = ztar + NP.array([-4.0,10.0])
-        ztar_k = ztar + NP.array([-8.0,15.0])
+       # ztar_k = ztar + NP.array([-8.0,15.0])
+        ztar_k = ztar + NP.array([-12.0,20.0])
         print("setpoint changed again")
       elif k > 50:
         ### change target
         #ztar_k = ztar + NP.array([-4.0,0.0])
-        ztar_k = ztar + NP.array([-8.0,0.0])
+        #ztar_k = ztar + NP.array([-8.0,0.0])
+        ztar_k = ztar + NP.array([-12.0,0.0])
         print("setpoint changed")
       else:
         ztar_k = ztar
