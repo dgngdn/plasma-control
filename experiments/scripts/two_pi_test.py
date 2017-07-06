@@ -101,13 +101,16 @@ def get_temp(runopts):
       with Lepton("/dev/spidev0.1") as l:
         data,_ = l.capture(retry_limit = 3)
       if l is not None:
+        Ts = NP.amax(data) / 100 - 273;
         for line in data:
           l = len(line)
           if (l != 80):
             print("error: should be 80 columns, but we got {}".format(l))
+          elif Ts > 150:
+            print("Measured temperature is too high: {}".format(Ts))
         #curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
         #fname = "{}".format(curtime)
-        Ts = NP.amax(data) / 100 - 273;
+        #Ts = NP.amax(data) / 100 - 273;
         #Ts = NP.true_divide(NP.amax(data[7:50]),100)-273;
         time.sleep(0.050)
         run = False
@@ -152,12 +155,13 @@ def gpio_setup():
 
 save_file=open('control_dat','a+')
 ## SETUP THE MPC
-#import model
-Model=scio.loadmat('sys_5sec.mat')
+#import modeld
+Model=scio.loadmat('sys_3sec.mat')
 A=Model['A']
 B=Model['B']
 C=Model['C']
-Delta=int(Model['Ts']) # sampling time, s
+#Delta=int(Model['Ts']) # sampling time, s
+Delta=3 # sampling time, s
 
 nx = int(A.shape[0])
 nu = int(B.shape[1])
@@ -165,7 +169,7 @@ ny = int(C.shape[0])
 nv = ny
 
 # simulation time
-#Delta = 1     
+Delta = 1     
 
 # parameters for MPC
 N = 10           # prediction horizon
@@ -343,6 +347,7 @@ if __name__ == "__main__":
 
   #initialize
   Ts = 0
+  Ts_old=0
   first_run = 0
   delay = 10
   k = 0
@@ -358,6 +363,12 @@ if __name__ == "__main__":
   while True:
     start_time = time.time()
     Ts = get_temp(runopts)
+
+    if abs(Ts)>150:
+        Ts=Ts_old
+    else:
+        Ts_old=Ts
+
     Is = get_intensity(f,runopts)
     print("measured temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
 
@@ -367,24 +378,26 @@ if __name__ == "__main__":
       #Y0 = [Ts,Is]
       Y0=[60,87]
       startMPC = True
-      print("starting mpc")
+      print("starting PI")
     elif k < delay:
-      print("Don't start MPC yet...")
+      print("Don't start PI yet...")
       time.sleep(Delta)
     else:
-      print("MPC is running")
+      print("PI is running")
     
     # The actual MPC part
     if startMPC:
       #if False:
-      if k > 100:
-       # ztar_k = ztar + NP.array([-4.0,10.0])
+      if k > 100*5/Delta:
+        #ztar_k = ztar + NP.array([-4.0,10.0])
         ztar_k = ztar + NP.array([-8.0,15.0])
+        #ztar_k = ztar + NP.array([-12.0,20.0])
         print("setpoint changed again")
-      elif k > 50:
+      elif k > 50*5/Delta:
         ### change target
         #ztar_k = ztar + NP.array([-4.0,0.0])
         ztar_k = ztar + NP.array([-8.0,0.0])
+        #ztar_k = ztar + NP.array([-12.0,0.0])
         print("setpoint changed")
       else:
         ztar_k = ztar
@@ -414,9 +427,10 @@ if __name__ == "__main__":
         u_opt[0]=u1
     
     
-      ## PI control between temeprature and voltage
+      ## PI control flow and intensity
       Kp2=36.8
-      Tp2=1
+      #Tp2=0.1
+      Tp2=0.1
       lamb2=20
       
       Kc2=Tp2/(Kp2*lamb2)

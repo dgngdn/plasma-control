@@ -25,6 +25,7 @@ import serial
 #import crcmod
 import crcmod.predefined
 
+
 U0 = NP.array([(8.0,16.0,1.2)], dtype=[('v','>f4'),('f','>f4'),('q','>f4')])
 
 crc8 = crcmod.predefined.mkCrcFun('crc-8-maxim')
@@ -101,13 +102,16 @@ def get_temp(runopts):
       with Lepton("/dev/spidev0.1") as l:
         data,_ = l.capture(retry_limit = 3)
       if l is not None:
+        Ts = NP.amax(data) / 100 - 273;
         for line in data:
           l = len(line)
           if (l != 80):
             print("error: should be 80 columns, but we got {}".format(l))
+          elif Ts > 150:
+            print("Measured temperature is too high: {}".format(Ts))
         #curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
         #fname = "{}".format(curtime)
-        Ts = NP.amax(data) / 100 - 273;
+        #Ts = NP.amax(data) / 100 - 273;
         #Ts = NP.true_divide(NP.amax(data[7:50]),100)-273;
         time.sleep(0.050)
         run = False
@@ -123,6 +127,7 @@ def get_intensity(f,runopts):
   """
   Gets optical intensity from the microcontroller
   """
+  Is = -1e5;
   if runopts.fakei:
     Is = 5
   else:
@@ -153,11 +158,14 @@ def gpio_setup():
 save_file=open('control_dat','a+')
 ## SETUP THE MPC
 #import model
-Model=scio.loadmat('sys_5sec.mat')
+#Model=scio.loadmat('sys_5sec.mat')
+Model=scio.loadmat('sys_3sec.mat')
 A=Model['A']
 B=Model['B']
 C=Model['C']
 Delta=int(Model['Ts']) # sampling time, s
+obs=scio.loadmat('obs.mat')
+Lt=obs['Lt']
 
 nx = int(A.shape[0])
 nu = int(B.shape[1])
@@ -215,7 +223,10 @@ At = NP.zeros((nx+nd,nx+nd)); At[0:nx,0:nx] = A; At[0:nx,nx:] = Bd; At[nx:,nx:] 
 Bt = NP.zeros((nx+nd,nu)); Bt[0:nx,:] = B
 Ct = NP.concatenate((C,Cd),axis=1)
 
-Lt, Pt = core.dlqe(At,Ct,NP.eye(nx+nd),0.1*NP.eye(ny))
+#Lt, Pt = core.dlqe(At,Ct,NP.eye(nx+nd),NP.array([[0.1,0],[0,0.1]]))
+
+print(NP.linalg.eig(At-Lt.dot(Ct)))
+
 
 tarMat = NP.zeros((nx+ny,nx+nu)); tarMat[0:nx,0:nx] = NP.eye(nx)-A; tarMat[0:nx,nx:] = -B; tarMat[nx:,0:nx] = H.dot(C)
 
@@ -232,8 +243,8 @@ Lstage = core.mtimes(x.T,Qx,x) + core.mtimes(u.T,Ru,u)
 MPC_dynamics = Function("MPC_dynamics", [x,u], [core.mtimes(A,x) + core.mtimes(B,u),Lstage])
 
 # bounds on outputs
-Ts_lb = -15;     Ts_ub = 8
-Is_lb = -40;     Is_ub = 25
+Ts_lb = -15;     Ts_ub = 5
+Is_lb = -4;     Is_ub = 25
 
 x_ub=[Ts_ub, inf, inf, Is_ub, inf, inf, inf]
 x_lb=[Ts_lb, -inf, -inf, Is_lb, -inf, -inf, -inf]
@@ -302,20 +313,20 @@ for k in range(N):
     lbg += [0]*nx
     ubg += [0]*nx
 
-# set solver options
 opts = {}
-if MySolver == "sqpmethod":
-  opts["qpsol"] = "qpoases"
-  opts["qpsol_options"] = {"printLevel":"none"}
-  opts["verbose_init"] = False
-  opts["print_header"] = False
-  opts["print_time"] = False
+opts["print_time"] = True
+#if MySolver == "sqpmethod":
+#  opts["qpsol"] = "qpoases"
+#  opts["qpsol_options"] = {"printLevel":"none"}
+#  opts["verbose_init"] = False
+#  opts["print_header"] = False
+#  opts["print_time"] = True
   #opts["print_iteration"] = False
 # create NLP solver for MPC problem
 prob = {'f':J, 'x':vertcat(*q), 'g':vertcat(*g)}
 
-solver=qpsol('solver','qpoases',prob)
-#solver = nlpsol('solver', MySolver, prob, opts)
+#solver=qpsol('solver','qpoases',prob,opts)
+solver=nlpsol('solver','ipopt',prob,opts)
 
 X = []
 U = []
@@ -345,10 +356,13 @@ if __name__ == "__main__":
 
   #initialize
   Ts = 0
+  Ts_old=0
+  Is=0
+  Is_old=0
   first_run = 0
   delay = 10
   k = 0
-  Y0 = 0
+  Y0=[60,87]
   startMPC = 0
   Xhat = NP.zeros((nx,1))
   Uhat = NP.zeros((1,nu))
@@ -359,38 +373,63 @@ if __name__ == "__main__":
   while True:
     start_time = time.time()
     Ts = get_temp(runopts)
+
+    if abs(Ts)>150:
+        Ts=Ts_old
+        print('WARNING: Old value of Ts is used')
+    else:
+        Ts_old=Ts
+
     Is = get_intensity(f,runopts)
+
+    if Is<0:
+        Is=Is_old
+        print('WARNING: Old value of Is is used')
+    else:
+        Is_old=Is
+
+
     print("measured temperature: {:.2f}, intensity: {:d}".format(Ts,Is))
 
     # k is the loop instance (incremented each loop)
     if k == delay:
       ## set Y0 as the initial state
       #Y0 = [Ts,Is]
-      Y0=[60,87]
       startMPC = True
       print("starting mpc")
     elif k < delay:
       print("Don't start MPC yet...")
+     # Y = NP.array([Ts-Y0[0], Is-Y0[1]])
+     # stack = NP.concatenate((Xhat,Dhat),axis=0)
+     # pred = At.dot(stack) + Bt.dot(U.T)
+     # err = Y - Ct.dot(pred).T
+     # update = pred + Lt.dot(err.T)
+     # Xhat = update[0:nx]
+     # Dhat = update[nx:]
+     # print("predicted temperature: {:.2f} intensity: {:.2f}".format(*(Ct.dot(pred).T+Y0).flatten()))
       time.sleep(Delta)
     else:
       print("MPC is running")
     
-    # The actual MPC part
+    # The actual MPC partt
     if startMPC:
       #if False:
-      if k > 100:
-       # ztar_k = ztar + NP.array([-4.0,10.0])
-       # ztar_k = ztar + NP.array([-8.0,15.0])
-        ztar_k = ztar + NP.array([-12.0,20.0])
+      if k > 100*5/Delta:
+        #ztar_k = ztar + NP.array([-4.0,10.0]) #mild setpoint
+        ztar_k = ztar + NP.array([-8.0,15.0])  #large setpoint
+        #ztar_k = ztar + NP.array([-12.0,20.0]) #even larger setpoint
+        #ztar_k = ztar + NP.array([-14.0,24.0]) #even larger setpoint
         print("setpoint changed again")
-      elif k > 50:
+      elif k > 50*5/Delta:
         ### change target
-        #ztar_k = ztar + NP.array([-4.0,0.0])
-        #ztar_k = ztar + NP.array([-8.0,0.0])
-        ztar_k = ztar + NP.array([-12.0,0.0])
+        #ztar_k = ztar + NP.array([-4.0,0.0]) #mild setpoint
+        ztar_k = ztar + NP.array([-8.0,0.0])  #large setpoint
+        #ztar_k = ztar + NP.array([-12.0,0.0])  #even larger setpoint
+        #ztar_k = ztar + NP.array([-14.0,0.0])  #even larger setpoint
         print("setpoint changed")
       else:
         ztar_k = ztar
+
       # get measurement
       Y = NP.array([Ts-Y0[0], Is-Y0[1]])
       #print(Y0)
@@ -436,6 +475,10 @@ if __name__ == "__main__":
         q_opt = sol['x'].full().flatten()
         u_opt = q_opt[nx:nx+nu]
         print("We solved a thing!")
+        #for i in range(N-1): #warm start
+        #      q0[nx+i*(nx+nu):nx+nu+i*(nx+nu)] = q_opt[nx+(i+1)*(nx+nu):nx+nu+(i+1)*(nx+nu)]
+        #      q0[nx+nu+i*(nx+nu):2*nx+nu+i*(nx+nu)] = q_opt[nx+nu+(i+1)*(nx+nu):2*nx+nu+(i+1)*(nx+nu)]
+        q0=q_opt
       except Exception as e:
         u_opt = u_opt
         print("The solver could not converge! {}".format(e))

@@ -25,6 +25,7 @@ import serial
 import crcmod
 #import crcmod.predefinmaed
 import usbtmc
+import visa
 
 U0 = NP.array([(8.0,16.0,1.2)], dtype=[('v','>f4'),('f','>f4'),('q','>f4')])
 
@@ -33,8 +34,8 @@ crc8 = crcmod.predefined.mkCrcFun('crc-8-maxim')
 ##initialize oscilloscope
 instr = usbtmc.Instrument(0x1ab1, 0x04ce)
 instr.open()
-while not (instr.timeout == 0.4 and instr.rigol_quirk == False):
-    instr.timeout = 0.4
+while not (instr.timeout == 1 and instr.rigol_quirk == False):
+    instr.timeout = 1
     instr.rigol_quirk = False
 idg = ''
 while not idg:
@@ -179,16 +180,35 @@ def get_oscilloscope(instr):
     
     instr.write(":MEAS:SOUR CHAN2")
     Imax=float(instr.ask("MEAS:VMAX?"))*1000   
-    
+    Irms=float(instr.ask("MEAS:VRMS?"))*1000   
+
+    if Imax>1e3:
+        print('WARNING: Measured current is too large')
+        instr.write(":RUN")
+        time.sleep(0.8)
+        instr.write(":STOP")
+        instr.write(":MEAS:SOUR CHAN2")
+        Imax=float(instr.ask("MEAS:VMAX?"))*1000   
+        Irms=float(instr.ask("MEAS:VRMS?"))*1000   
     instr.write(":MEAS:SOUR MATH")
     P=float(instr.ask("MEAS:VAVG?"))
+
+    if P>1e3:
+        print('WARNING: Measured power is too large')
+        instr.write(":RUN")
+        time.sleep(0.8)
+        instr.write(":STOP")
+        instr.write(":MEAS:SOUR MATH")
+        P=float(instr.ask("MEAS:VAVG?"))   
+
     instr.write(":RUN")
-    return [Vrms,Imax,P]
+    time.sleep(0.4)
+    return [Vrms,Imax,Irms,P]
 
 save_file=open('control_dat','a+')
-## SETUP THE MPC
+
 #import input data
-OL_opt=scio.loadmat('U_sweep2.mat')
+OL_opt=scio.loadmat('U_sweep4.mat')
 OL_in=OL_opt['u_opts']
 Delta = 5 #how long each input combination is applied in s
 osc_run=1;
@@ -241,9 +261,9 @@ if __name__ == "__main__":
 
     Is = get_intensity(f,runopts)
 
-    [Vrms, Imax, P]= get_oscilloscope(instr)
+    [Vrms, Imax, Irms, P]= get_oscilloscope(instr)
    
-    print("T(C): {:.2f}, I(a.u.): {:d}, Vrms(V): {:.2f}, Imax(mA): {:.2f}, Power(W):{:.2f}".format(Ts,Is,Vrms,Imax,P))
+    print("T(C): {:.2f}, I(a.u.): {:d}, Vrms(V): {:.2f}, Imax(mA): {:.2f}, Irms(mA): {:.2f}, Power(W):{:.2f}".format(Ts,Is,Vrms,Imax,Irms,P))
 
 
  
@@ -282,7 +302,7 @@ if __name__ == "__main__":
       time_el = end_time - start_time
       
        #save_file.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n".format(Ts,Is,*Y,*X,*U))
-      save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(time.time(),Ts,Is,Vrms,Imax,P,*U,time_el))  ##X is never referenced!
+      save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(time.time(),Ts,Is,Vrms,Imax,Irms,P,*U,time_el))  ##X is never referenced!
       #print()
       save_file.flush()
       if time_el < Delta:
