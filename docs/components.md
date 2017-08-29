@@ -37,6 +37,45 @@
 <!-- tocstop -->
 
 
+# DIGITAL TO ANALOG CONVERTERS
+
+MCP4901/4911/4921
+http://ww1.microchip.com/downloads/en/DeviceDoc/22248a.pdf
+
+MCP4902/4912/4922
+http://ww1.microchip.com/downloads/en/DeviceDoc/22250A.pdf
+
+
+
+# DIGITAL POTENTIOMETERS
+
+
+|BC| Pinout Guide
+
+https://docs.google.com/drawings/d/1WJjRJuS9Q22gblAvVGiEUgDR4nYqXGMS6VytMeWzECI/edit
+
+## MCP41HV51
+
++ http://www.microchip.com/wwwproducts/en/MCP41HV51
++ http://ww1.microchip.com/downloads/en/DeviceDoc/20005207B.pdf
+
+"MCP41HV51 is a single-channel, high voltage digital potentiometer (Digipot) family that supports 10V ~36V or +/-5V to +/-18V power rails. It features 8-bit resolution with SPI interface. This family is available in TSSOP-14 and QFN-20 (5x5) packages and has 5kΩ, 10 kΩ, 50 kΩ, and 100 kΩ end-to-end resistance(RAB) options."
+
+
+## MCP 413X / 415X / 423X / 415X
+
+https://www.microchip.com/wwwproducts/en/MCP4162
+
+"The MCP41/426X devices are non-volatile, 8-bit (257 wiper steps) digital potentiometers with EEPROM and an SPI compatible interface. The MCP41/42XX family is available with end-to-end resistor values of 5KΩ, 10KΩ, 50kΩ and 100KΩ."
+
+
+## Applications
+
+Using Digital Potentiometers for Programmable Amplifier Gain
+
+Microchip AN1316: http://ww1.microchip.com/downloads/cn/AppNotes/cn547861.pdf
+
+
 # OP AMPS
 
 ## Parameters
@@ -131,7 +170,15 @@ drive   0-10,000 pF
 current 30 mA
 Cost    $0.89
 
+designed for single-supply operation
+Input Common Mode Voltage Range includes ground
+"Wide Input Common Mode Voltage Range: Includes Ground"
+
 datasheet: https://www.jameco.com/webapp/wcs/stores/servlet/Product_10001_10001_251061_-1
+http://www.onsemi.com/PowerSolutions/product.do?id=MC34072
+http://www.onsemi.com/pub/Collateral/MC34071-D.PDF
+
+$0.90
 
 ### INA126
 
@@ -143,6 +190,10 @@ precision instrumentation amplifier
 + set the reference voltage with a low-impedance input
 
 "The INAx126 can be used on single power supplies of 2.7 V to 36 V. Use the output REF pin to level shift the internal output voltage into a linear operating condition. Ideally, connecting the REF pin to a potential that is midsupply avoids saturating the output of the amplifiers."
+
+"Industrial Sensor Amplifiers: Bridges, RTDs, Thermocouples"
+
+needs ~3.5V of headroom vs. the supplies
 
 ### TL071
 
@@ -158,6 +209,9 @@ in_bias 65 pA
 in_off  2 nA
 in_off  3 mV
 price   $0.69
+
+TL071 can be operated as single- or dual-supply, but is NOT rail-to-rail
+input common mode range needs 4V of headroom versus the supplies!
 
 https://www.jameco.com/z/TL072CP-Major-Brands-OP-Amp-Dual-General-Purpose-plusmn-18-Volt-8-Pin-Plastic-Dip-Tube_33195.html
 
@@ -178,9 +232,55 @@ resist  2 Mohm
 current 25 mA
 Cost    $0.49
 
+can operate with single- or dual-supplies
+input range needs 2-3V of headroom versus the supplies!
+
 https://www.jameco.com/z/LM741CN-R-Major-Brands-OP-Amp-Single-General-Purpose-plusmn-18-Volt-8-Pin-Plastic-Dip-Rail_24540.html
 
 ### LM358
+
+
+### OPA341
+
+http://www.ti.com/lit/ds/symlink/opa341.pdf
+
+RAIL-TO-RAIL INPUT AND OUTPUT SWING
+BANDWIDTH: 5.5MHz
+SLEW RATE: 6V/µs
+SIGNAL CONDITIONING, Active Filters, Data Acquisition...
+
+"They are optimized for low-voltage, single-supply operation. Rail-to-rail input and output and high-speed operation make them ideal for driving sampling Analog-to-Digital (A/D) converters"
+
+"The single (OPA341) packages are the tiny SOT23-6 surface
+mount and SO-8 surface mount. The dual (OPA2341) comes
+in the miniature MSOP-10 surface mount"
+
+## OPA340
+
+rail-to-rail
+low-voltage single supply
+
+http://www.ti.com/product/OPA340
+http://www.ti.com/lit/ds/symlink/opa340.pdf
+
+available as PDIP:
+https://www.arrow.com/en/products/opa340pa/texas-instruments
+$2.52
+
+
+### AD820
+
+"Single-Supply, Rail-to-Rail, Low Power FET-Input Op Amp"
+http://www.analog.com/en/products/amplifiers/operational-amplifiers/jfet-input-amplifiers/ad820.html
+Single-supply capability from 5 V to 36 V
+
+"It has true single-supply capability, with an input voltage range extending below the negative rail, allowing the AD820 to accommodate input signals below ground in the single-supply mode. Output voltage swing extends to within 10 mV of each rail, providing the maximum output dynamic range."
+
+"The AD820 is offered in three 8-lead package options: plastic DIP (PDIP), surface mount (SOIC) and (MSOP)."
+
+https://www.arrow.com/en/products/ad820anz/analog-devices
+$5.18
+
 
 
 
@@ -217,6 +317,23 @@ JFET Properties
 + lower input impedances
 + higher input offset voltages
 + easily damaged by static
+
+### Single-Supply Rail-to-rail
+
+ref: http://forum.arduino.cc/index.php?topic=86146.0
+"I usually start with the TLV2371 and look for other options only if that workhorse won't do the job for me. It's rail-to-rail input and output, works between 2.7V and 16V, has 3 MHz bandwidth, comes in 1/2/4 packages (TLV2371, TLV2372, TLV2374), comes in DIP and SMT versions, and has worst-case 6mV input offset voltage. It's also pretty cheap."
+
+https://www.arrow.com/en/products/tlv2371ip/texas-instruments
+$1.32
+
+https://www.arrow.com/en/products/tlv2372ip/texas-instruments
+$1.79
+
+https://www.arrow.com/en/products/tlv2374in/texas-instruments
+$2.06
+
+http://www.ti.com/product/TLV2371
+550-uA/Channel 3-MHz RRIO Op Amp
 
 
 
@@ -408,3 +525,68 @@ https://www.jameco.com/Jameco/Products/ProdDS/320653NEC.pdf
 Uses:
 + Comparator http://www.electronics-tutorials.ws/opamp/op-amp-comparator.html
 +
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LT1170
+High Efficiency Switching Regulators
+https://cds.linear.com/docs/en/datasheet/117012fi.pdf
+
+The LT®1170/LT1171/LT1172 are monolithic high powerswitching
+regulators. They can be operated in all standard
+switching configurations including buck, boost, flyback,
+forward, inverting and “Cuk.” A high current, high efficiency
+switch is included on the die along with all oscillator, control
+and protection circuitry. 
+
+The LT1170/LT1171/LT1172 are current mode switchers.
+This means that switch duty cycle is directly controlled by
+switch current rather than by output voltage. Referring to
+the block diagram, the switch is turned “on” at the start of
+each oscillator cycle. It is turned “off” when switch current
+reaches a predetermined level. Control of output voltage
+is obtained by using the output of a voltage sensing error
+amplifier to set current trip level. 
+
+----
+
+How could I combine this circuit's desirable resonating characteristics
+with other techniques to meet the backlight's requirements? One key was
+a simple, more efficient transformer drive. I knew just where to find it.
+In December 1954 the paper "Transistors as On-Off Switches in
+Saturable-Core Circuits" appeared in Electrical Manufacturing. George
+H. Royer, one of the authors, described a "d-c to a-c converter" as part
+of this paper. Using Westinghouse 2N74 transistors, Royer reported
+90% efficiency for his circuit. The operation of Royer's circuit is well
+described in this paper. The Royer converter was widely adopted, and
+used in designs from watts to kilowatts. It is still the basis for a wide
+variety of power conversion.
+
+The Royer's output power is controllable by varying the primary drive
+current. Figure 11-11 shows a way to investigate this. This circuit works
+well, except that the transistor current sink operates in its linear region,
+wasting power. Figure 11-12 converts the current sink to switch mode
+operation, maintaining high efficiency.
+
+curent sink: control voltage E to noninverting input, output to transistor base, transistor collector to inverting input with resistor R to ground; I = E/R
+
+

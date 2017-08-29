@@ -67,3 +67,32 @@ via: http://cr4.globalspec.com/thread/67289/Difference-Between-4016-and-4066-ICs
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## What I Actually Used
+
+THIS has great designs, especially Figure 7 using the CD4066: http://sound.whsites.net/articles/muting.html
+
+The topology I'm using is a version of "Figure 7 - CMOS Bilateral Switch Muting Circuit" from the second reference, powered by +/-9V split rails, and I'm using a (slightly less-clever?) design that utilizes two op amps configured as comparators (one inverting, one non-inverting) to sharpen the on/off transitions of the Arduino's PWM output and trigger the CD4066 switches.
+
++ https://www.jameco.com/z/CD4066-Major-Brands-QUAD-BILATERAL-SWITCH-DIP-14_13186.html
++ notebook: https://drive.google.com/open?id=0B1LciOIIcrN_ZmppNWF6bjVLQms
++ Audio switching notebook mentioned in the notes above: https://neatcircuits.com/audiosw/
++ 
+
+
+
+
