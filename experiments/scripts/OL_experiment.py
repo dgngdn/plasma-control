@@ -169,16 +169,18 @@ def get_intensity(f,runopts):
   else:
     run = True
     while run:
+
       try:
         f.reset_input_buffer()
         f.readline()
         line = f.readline().decode('ascii')
         if is_valid(line):
-          run = False
+          run = False        
         else:
           print("CRC8 failed. Invalid line!")
-        Is = int(line.split(',')[6])
-        v_rms = float(line.split(',')[7])
+           
+      Is = int(line.split(',')[6])
+      v_rms = float(line.split(',')[7])   
       except:
         pass
   return [Is, v_rms]
@@ -238,7 +240,7 @@ def get_spec(spec):
 save_file=open('control_dat','a+')
 
 #import input data
-OL_opt=scio.loadmat('sweep_with_pi.mat')
+OL_opt=scio.loadmat('sweep_plasma_off.mat')
 OL_in=OL_opt['u_opts']
 Delta = 20 #how long each input combination is applied in s
 osc_run=1;
@@ -346,6 +348,11 @@ if __name__ == "__main__":
       save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(time.time(),Ts,Is,Vrms,v_rms,Imax,Irms,P,Pp*Freq,Freq/1000,O777,*U,time_el,k))  ##X is never referenced!
       #print()
       save_file.flush()
+
+
+
+
+
 
       if time_el < Delta:
         k = k

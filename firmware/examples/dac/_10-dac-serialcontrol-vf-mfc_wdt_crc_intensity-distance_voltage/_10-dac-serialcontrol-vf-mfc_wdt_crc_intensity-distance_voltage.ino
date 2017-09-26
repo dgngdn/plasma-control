@@ -69,7 +69,7 @@ namespace data {
 }
 
 namespace  PI_V{
-  float Kc = 10/(0.71*100);
+  float Kc = 10/(0.71*20);
   float Tau_i = 10;
   float I = 0;
   float err = 0 ;
@@ -80,12 +80,12 @@ namespace setpoint {
   float vapp = 0;
   float frequency = 10;
   float flowrate = 0;
-  float dist = 4;
+  float dist = 40;
 }
 
 namespace location {
   float delta = 0;
-  float cur_loc = 4;
+  float cur_loc = 40;
 }
 
 static const uint8_t PROGMEM dscrc_table[] = {
@@ -147,6 +147,9 @@ void setup_watchdog() {
   #endif
 }
 
+////////////////////// READING FROM SERIAL ////////////////////////
+////// GET STRING ////////////////////////////////////////////////
+
 void get_serial() {
   // gets manual input from the serial port
   #if DEBUG
@@ -188,6 +191,8 @@ void get_serial() {
   }
 }
 
+////// PARSE INPUTS /////////////////////////////////////////////////////
+
 void manual_input(String input) {
   // process the manual request recieved via serial
   #if DEBUG
@@ -225,7 +230,7 @@ void manual_input(String input) {
       case 'd' :
       // you sent d,###
       setpoint::dist = input.substring(2).toFloat();
-      location::delta = abs( location::cur_loc - setpoint::dist);
+      location::delta = - location::cur_loc + setpoint::dist;
       //Serial.println(location::delta);     
 
       #if DEBUG
@@ -235,6 +240,29 @@ void manual_input(String input) {
       break;
   }
 }
+
+////////////////////////////// STEPPER MOVEMENT //////////////////////////////////
+
+
+int move_to_pos(float delt, Adafruit_StepperMotor *motor) {
+  //Serial.print(aaReal.x);
+  //Serial.print('\n');
+
+  if (delt < 0) {
+      myMotor->step(30, FORWARD, DOUBLE); //// STEP SIZE calibrated 09/26/2017
+      delt=delt + 2;
+      //delay(30);
+     return delt;
+  } else if (delt > 0) {
+      delt=delt - 2;
+      myMotor->step(30, BACKWARD, DOUBLE); 
+      //delay(30);
+    return delt;
+  } else if (delt == 0) {
+    return delt;
+  }
+}
+////////////////////////////////////// ACTUATION ///////////////////////////////////////
 
 void actuate_inputs() {
   // actuates the system inputs via the DACs
@@ -249,7 +277,8 @@ void actuate_inputs() {
   //        mapfloat(setpoint::frequency,10,20,0.92*(DACSTEPS-1),0.1*(DACSTEPS-1)));
 
   // tuned for the control jet setup on 24V supply:
-    
+
+  ////////////// CONTROL FOR VGAP //////////////////////////////////////////////////
   setpoint::vapp=setpoint::vapp + PI_V::Kc*(PI_V::err+PI_V::I/PI_V::Tau_i);  
 
   DAC_FXN.Set(mapfloat(setpoint::vapp,0,12,0.96*(DACSTEPS-1),0.46*(DACSTEPS-1)), 
@@ -257,12 +286,8 @@ void actuate_inputs() {
           
   DAC_MFC.Set(mapfloat(setpoint::flowrate,0,10,0,4095),0);
 
-  //if(location::cur_loc < setpoint::dist){
-  //    myMotor->step(location::delta*125, FORWARD, DOUBLE); 
-  //    location::cur_loc = setpoint::dist;}
- // else if(location::cur_loc>setpoint::dist){
-  //    myMotor->step(location::delta*125, BACKWARD, DOUBLE); 
-  //    location::cur_loc = setpoint::dist;}
+ location::delta=move_to_pos(location::delta, myMotor);
+ location::cur_loc = location::delta + setpoint::dist;
  
 }
 
@@ -284,6 +309,7 @@ void addRead(int value)
   }
 }
 
+/////////////////////////// SETUP /////////////////////////////
 
 void setup()
 {
@@ -301,6 +327,8 @@ void setup()
 
   actuate_inputs();
 }
+
+/////////////////////////// LOOP ////////////////////////////
 
 void loop()
 {
@@ -327,7 +355,9 @@ void loop()
   data::dist = proxsensor.readRangeSingleMillimeters(); // read VL6180X distance
   //addRead(data::dist); // add distance to averaging array
 
-  PI_V::err = 0.71*setpoint::voltage/2 - data::v_rms*2;
+  //PI_V::err = 0.71*setpoint::voltage/2 - data::v_rms*2;
+  //PI_V::err = setpoint::voltage  - (6.33*data::v_rms + 1.57);
+  PI_V::err = 0.35*setpoint::voltage/2 - data::v_rms*2; //// ERROR CALCULATION calibrated 09/26/2017
   actuate_inputs();
   PI_V::I = PI_V::I + PI_V::err*(ts-t_prev)*1e-3;
   
@@ -343,10 +373,10 @@ void loop()
   mystring += ',';
  // mystring += setpoint::dist;
  // mystring += ',';
-  //mystring += location::cur_loc;
- // mystring += ',';
-  mystring += data::dist;
+  mystring += location::cur_loc;
   mystring += ',';
+  //mystring += data::dist;
+  //mystring += ',';
   mystring += data::photo_a;
   mystring += ',';
   mystring += data::photo_b;

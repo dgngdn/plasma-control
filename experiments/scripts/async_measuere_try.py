@@ -42,7 +42,7 @@ idg = ''
 while not idg:
     try:
         idg = instr.ask("*IDN?")
-    except Exception as e: # USBError
+    except Exception as e: # USBErrors
          print("{} in get_oscilloscope".format(e))
          time.sleep(0.4)
 print("device info: {}".format(idg))
@@ -127,121 +127,6 @@ def crc_check(data,crc):
   return crc == crc_from_data
 
 
-def get_temp(runopts):
-  """
-
-  Gets treatment temperature with the Lepton thermal camera
-  """
-  if runopts.faket:
-    return 24
-
-  run = True
-  while run:
-    try:
-      with Lepton("/dev/spidev0.1") as l:
-        data,_ = l.capture(retry_limit = 3)
-      if l is not None:
-        Ts = NP.amax(data) / 100 - 273;
-        for line in data:
-          l = len(line)
-          if (l != 80):
-            print("error: should be 80 columns, but we got {}".format(l))
-          elif Ts > 150:
-            print("Measured temperature is too high: {}".format(Ts))
-        #curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
-        #fname = "{}".format(curtime)
-        #Ts = NP.amax(data) / 100 - 273;
-        #Ts = NP.true_divide(NP.amax(data[7:50]),100)-273;
-        time.sleep(0.050)
-        run = False
-    except:
-      print("\nHardware error on the thermal camera. Lepton restarting...")
-      gpio.output(35, gpio.HIGH)
-      time.sleep(0.5)
-      gpio.output(35, gpio.LOW)
-      print("Lepton restart completed!\n\n")
-  
-
-  #print(Ts)
-  return Ts
-
-def get_intensity(f,runopts):
-  """
-
-  Gets optical intensity from the microcontroller
-  """
-  if runopts.fakei:
-    Is = 5
-  else:
-    run = True
-    while run:
-      try:
-        f.reset_input_buffer()
-        f.readline()
-        line = f.readline().decode('ascii')
-        if is_valid(line):
-          run = False
-        else:
-          print("CRC8 failed. Invalid line!")
-        Is = int(line.split(',')[6])
-      except:
-        pass
-    
-  #print(Is)
-
-  return Is
-
-def get_oscilloscope(instr):
-
-    #instr.write(":STOP")
-    # Votlage measurement
-    instr.write(":MEAS:SOUR CHAN1")
-    Vrms=float(instr.ask("MEAS:ITEM? PVRMS"))
-    Freq=float(instr.ask("MEAS:ITEM? FREQ"))
-    #cycles on screen
-    c_os=100*6*1e-6*Freq
-
-    instr.write(":MEAS:SOUR CHAN2")
-    Imax=float(instr.ask("MEAS:VMAX?"))*1000   
-    Irms=float(instr.ask("MEAS:ITEM? PVRMS"))*1000   
-
-    if Imax>1e3:
-        print('WARNING: Measured current is too large')
-        instr.write(":RUN")
-        time.sleep(0.8)
-        instr.write(":STOP")
-        instr.write(":MEAS:SOUR CHAN2")
-        Imax=float(instr.ask("MEAS:VMAX?"))*1000   
-        Irms=float(instr.ask("MEAS:VRMS?"))*1000   
-    instr.write(":MEAS:SOUR MATH")
-    P=float(instr.ask("MEAS:VAVG?"))
-    Pp=float(instr.ask("MEAS:ITEM? MPAR"))   
-
-
-    if P>1e3:
-        print('WARNING: Measured power is too large')
-        instr.write(":RUN")
-        time.sleep(0.8)
-        instr.write(":STOP")
-        instr.write(":MEAS:SOUR MATH")
-        P=float(instr.ask("MEAS:VAVG?"))
-        Pp=float(instr.ask("MEAS:ITEM? MPAR"))   
-
-   # instr.write(":RUN")
-    time.sleep(0.4)
-    
-    #print(P)
-
-    return [Vrms,Imax,Irms,P,Pp,Freq]
-
-def get_spec(spec):
-
-    wv=spec.wavelengths()
-    sp_int=spec.intensities()
-    O777=max(sp_int[1200:1250])
-    
-    #print(O777)
-    return O777
 ############################################ ASYNC DEFS ##################################################33
 
 async def get_temp_a(runopts):
@@ -257,7 +142,14 @@ async def get_temp_a(runopts):
       with Lepton("/dev/spidev0.1") as l:
         data,_ = l.capture(retry_limit = 3)
       if l is not None:
-        Ts = NP.amax(data) / 100 - 273;
+        ##print(data[10:80]);
+        Ts = NP.amax(data[6:60,:,0]) / 100 - 273;
+        Tt = NP.amax(data[0:5,:,0]) / 100 - 273;
+        mm= NP.where( data == NP.amax(data) )
+
+        Ts_lin=data[int(mm[0]),:,0] /100 - 273
+        Ts2 = (Ts_lin[int(mm[1])+2]+Ts_lin[int(mm[1])-2])/2
+        Ts3 = (Ts_lin[int(mm[1])+6]+Ts_lin[int(mm[1])-6])/2
         for line in data:
           l = len(line)
           if (l != 80):
@@ -278,7 +170,7 @@ async def get_temp_a(runopts):
       print("Lepton restart completed!\n\n")
   
   #print(Ts)
-  return Ts
+  return [Ts, Ts2, Ts3, Ts_lin, Tt, data]
 
 async def get_intensity_a(f,runopts):
   """
@@ -288,6 +180,9 @@ async def get_intensity_a(f,runopts):
     Is = 5
   else:
     run = True
+    v_rms=0
+    Is=0
+    U=[0,0,0]
     while run:
       try:
         f.reset_input_buffer()
@@ -295,15 +190,27 @@ async def get_intensity_a(f,runopts):
         line = f.readline().decode('ascii')
         if is_valid(line):
           run = False
+          Is = int(line.split(',')[6])
+          v_rms = float(line.split(',')[7])
+          V = float(line.split(',')[1])
+          f = float(line.split(',')[2])
+          q = float(line.split(',')[3])
         else:
           print("CRC8 failed. Invalid line!")
-        Is = int(line.split(',')[6])
+      #    run = False
+      #    Is = 0
+      #    v_rms = 0
+      #    V = 0
+      #    f = 0
+      #    q = 0
+       
+        U=[V,f,q]
       except:
         pass
     
   #print(Is)
 
-  return Is
+  return [Is,v_rms,U]
 
 def gpio_setup():
   gpio.setmode(gpio.BOARD)
@@ -326,9 +233,7 @@ async def get_oscilloscope_a(instr):
 
     if Imax>1e3:
         print('WARNING: Measured current is too large')
-        instr.write(":RUN")
         time.sleep(0.8)
-        instr.write(":STOP")
         instr.write(":MEAS:SOUR CHAN2")
         Imax=float(instr.ask("MEAS:VMAX?"))*1000   
         Irms=float(instr.ask("MEAS:VRMS?"))*1000   
@@ -339,9 +244,7 @@ async def get_oscilloscope_a(instr):
 
     if P>1e3:
         print('WARNING: Measured power is too large')
-        instr.write(":RUN")
         time.sleep(0.8)
-        instr.write(":STOP")
         instr.write(":MEAS:SOUR MATH")
         P=float(instr.ask("MEAS:VAVG?"))
         Pp=float(instr.ask("MEAS:ITEM? MPAR"))   
@@ -380,27 +283,29 @@ async def asynchronous_measure(f,instr,runopts):
     await asyncio.wait(tasks)
     return tasks
 
+############################################ INITIALIZE ###########################################
+
 save_file=open('control_dat','a+')
 
+
 #import input data
-OL_opt=scio.loadmat('U_ID_seq.mat')
+OL_opt=scio.loadmat('valid_try.mat')
 OL_in=OL_opt['u_opts']
+delay = 10
 Delta = 300 #how long each input combination is applied in s
 osc_run=1;
-
-X = []
-U = []
-Y = []
-
-
+u_opt = [0,0,0]
+k=-1
+t0=time.time()      
 if __name__ == "__main__":
     
     runopts = get_runopts() 
     gpio_setup()
     f = serial.Serial('/dev/arduino', baudrate=38400,timeout=1)
-   
+
+############################################ MAIN LOOP ###########################################
+    
     while True:
-        t0=time.time()      
         #Ts=syncronous_measure(f,instr,runopts)
         #t1=time.time()
         #print('sync:',t1-t0)       
@@ -412,15 +317,66 @@ if __name__ == "__main__":
         else:
             ioloop = asyncio.get_event_loop()
           
-
-            t0=time.time()      
+############################################ MEASUREMENT ###########################################
             a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
            # Ts=tasks[0].result()
-            t1=time.time()
-            print('async:',t1-t0)        
-            print(a[0].result())
-            print(a[1].result())
-           # print(tasks)
+           # print('async:',t1-t0) 
+        
+          ##### UNPACKING TASK OUTS ########
+            Temps=a[0].result()
+            Ts=Temps[0]
+            Ts2=Temps[1]
+            Ts3=Temps[2]
+            Tt=Temps[4]
+
+            Ard_out=a[1].result()   
+            Is=Ard_out[0]
+            v_rms=Ard_out[1]
+            U=Ard_out[2]
+            Osc_out=a[2].result()
+            Vrms=Osc_out[0]
+            Imax=Osc_out[1]
+            Irms=Osc_out[2]
+            P=Osc_out[3]
+            Pp=Osc_out[4]
+            Freq=Osc_out[5]  
+                      
+            O777=a[3].result()
+
+        print("T(C): {:.2f}, I(a.u.): {:d}, Vrms(V): {:.2f}, Imax(mA): {:.2f}, Irms(mA): {:.2f}, Power(W):{:.2f},{:.2f}".format(Ts,Is,Vrms,Imax,Irms,P,Pp*Freq))
+
+        t1=time.time()-t0
+
+        save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},     {:6.2f},{:6.2f}\n".format(time.time(),Ts,Ts2,Ts3,Tt,Is,Vrms,v_rms,Imax,Irms,P,Pp*Freq,Freq/1000,O777,*U,t1))  ##X is never
+         
+        save_file.flush()
+
+############################################ ACTUATION ###########################################
+        if t1<delay:  ## initial delay ####
+            delay_flag=0
+        else:
+            delay_flag=1     
+
+
+        if delay_flag==1:  ## actual actuation ####
+            if t1<Delta:
+                k=k
+            else:
+                k=k+1
+                print("Next increment...")
+                u_opt=OL_in[k,:]
+         
+                U = u_opt
+
+                Ureal = U + NP.array([U0['v'],U0['f'],U0['q']])
+                #print(Ureal.shape)
+                print("sending inputs...")
+                send_inputs(f,U)
+                print("inputs sent!")
+                t0=time.time()      
+
+
+            ## print(tasks)
 
             ##ioloop.close()
             ##ioloop.close()
