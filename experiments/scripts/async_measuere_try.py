@@ -86,7 +86,7 @@ def get_runopts():
   return runopts
 
 ##define input zero point
-U0 = NP.array([(8.0,16.0,1.2)], dtype=[('v','>f4'),('f','>f4'),('q','>f4')])
+U0 = NP.array([(8.0,16.0,1.2,40)], dtype=[('v','>f4'),('f','>f4'),('q','>f4'),('d','>f4')])
 
 def send_inputs(device,U):
   """
@@ -95,6 +95,7 @@ def send_inputs(device,U):
   Vn = U[0]+U0['v'][0]
   Fn = U[1]+U0['f'][0]
   Qn = U[2]+U0['q'][0]
+  Dn = U[3]+U0['d'][0]
   input_string='echo "v,{:.2f}" > /dev/arduino && echo "f,{:.2f}" > /dev/arduino && echo "q,{:.2f}" > /dev/arduino'.format(Vn, Fn, Qn)
   #subprocess.run('echo -e "v,{:.2f}\nf,{:.2f}\nq,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2), shell=True)
   device.reset_input_buffer()
@@ -110,7 +111,9 @@ def send_inputs(device,U):
   subprocess.run('echo "q,{:.2f}" > /dev/arduino'.format(Qn), shell=True)
   #subprocess.call(input_string,  shell=True)
   #print("input: {}".format(input_string))
-  print("input values: {:.2f},{:.2f},{:.2f}".format(Vn,Fn,Qn))
+  time.sleep(0.200)
+  subprocess.run('echo "d,{:.2f}" > /dev/arduino'.format(Dn), shell=True)
+  print("input values: {:.2f},{:.2f},{:.2f},{:.2f}".format(Vn,Fn,Qn,Dn))
 
 def is_valid(line):
   """
@@ -195,6 +198,7 @@ async def get_intensity_a(f,runopts):
           V = float(line.split(',')[1])
           f = float(line.split(',')[2])
           q = float(line.split(',')[3])
+          dsep=float(line.split(',')[4])
         else:
           print("CRC8 failed. Invalid line!")
       #    run = False
@@ -204,7 +208,7 @@ async def get_intensity_a(f,runopts):
       #    f = 0
       #    q = 0
        
-        U=[V,f,q]
+        U=[V,f,q,dsep]
       except:
         pass
     
@@ -289,12 +293,12 @@ save_file=open('control_dat','a+')
 
 
 #import input data
-OL_opt=scio.loadmat('valid_try.mat')
+OL_opt=scio.loadmat('sweep_with_dist2.mat')
 OL_in=OL_opt['u_opts']
 delay = 10
-Delta = 300 #how long each input combination is applied in s
+Delta = 150 #how long each input combination is applied in s
 osc_run=1;
-u_opt = [0,0,0]
+u_opt = [0,0,0,0]
 k=-1
 t0=time.time()      
 if __name__ == "__main__":
@@ -347,9 +351,12 @@ if __name__ == "__main__":
 
         t1=time.time()-t0
 
-        save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},     {:6.2f},{:6.2f}\n".format(time.time(),Ts,Ts2,Ts3,Tt,Is,Vrms,v_rms,Imax,Irms,P,Pp*Freq,Freq/1000,O777,*U,t1))  ##X is never
-         
-        save_file.flush()
+        try:
+            save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},    {:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(time.time(),Ts,Ts2,Ts3,Tt,Is,Vrms,v_rms,Imax,Irms,P,Pp*Freq,Freq/1000,O777,*U,t1))  ##X is never
+            save_file.flush()   
+        except:
+            pass      
+
 
 ############################################ ACTUATION ###########################################
         if t1<delay:  ## initial delay ####
@@ -364,6 +371,7 @@ if __name__ == "__main__":
             else:
                 k=k+1
                 print("Next increment...")
+                
                 u_opt=OL_in[k,:]
          
                 U = u_opt

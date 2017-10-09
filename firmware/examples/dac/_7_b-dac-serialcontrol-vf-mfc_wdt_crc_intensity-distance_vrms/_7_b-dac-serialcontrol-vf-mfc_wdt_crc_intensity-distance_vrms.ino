@@ -36,7 +36,7 @@ int read_total = 0;
 // GLOBAL CONSTANTS
 const double SERIAL_BAUD = 38400;
 const int PROXIMITY_TIMEOUT = 25;
-const int LOOPDELAY = 1; // milliseconds
+const int LOOPDELAY = 1; // millisecondsp
 const int DACSTEPS = 4096;
 
 // PINOUT

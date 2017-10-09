@@ -69,7 +69,7 @@ namespace data {
 }
 
 namespace  PI_V{
-  float Kc = 10/(0.71*20);
+  float Kc = 10/(0.71*30);
   float Tau_i = 10;
   float I = 0;
   float err = 0 ;
@@ -211,7 +211,10 @@ void manual_input(String input) {
   
     case 'f' :
       // you sent f,###
-      setpoint::frequency = input.substring(2).toFloat();
+      if (input.substring(2).toFloat() > 20) {setpoint::frequency=20;}
+      else if (input.substring(2).toFloat() < 10) {setpoint::frequency=10;}
+      else { 
+      setpoint::frequency = input.substring(2).toFloat();};
       #if DEBUG
         Serial.println("frequency set!");
       #endif
@@ -220,7 +223,10 @@ void manual_input(String input) {
       
     case 'q' :
       // you sent q,###
-      setpoint::flowrate = input.substring(2).toFloat();
+      if (input.substring(2).toFloat() > 10) {setpoint::flowrate=10;}
+      else if (input.substring(2).toFloat() < 0) {setpoint::flowrate=0;}
+      else { 
+      setpoint::flowrate = input.substring(2).toFloat();};
       #if DEBUG
         Serial.println("flowrate set!");
       #endif
@@ -229,7 +235,10 @@ void manual_input(String input) {
       
       case 'd' :
       // you sent d,###
-      setpoint::dist = input.substring(2).toFloat();
+      if (input.substring(2).toFloat() > 150) {setpoint::dist=150;}
+      else if (input.substring(2).toFloat() < 0) {setpoint::dist=0;}
+      else {
+      setpoint::dist = input.substring(2).toFloat();}
       location::delta = - location::cur_loc + setpoint::dist;
       //Serial.println(location::delta);     
 
@@ -249,13 +258,15 @@ int move_to_pos(float delt, Adafruit_StepperMotor *motor) {
   //Serial.print('\n');
 
   if (delt < 0) {
-      myMotor->step(30, FORWARD, DOUBLE); //// STEP SIZE calibrated 09/26/2017
+      myMotor->step(30  , FORWARD, DOUBLE); //// STEP SIZE calibrated 09/26/2017
+      myMotor->release();
       delt=delt + 2;
       //delay(30);
      return delt;
   } else if (delt > 0) {
       delt=delt - 2;
       myMotor->step(30, BACKWARD, DOUBLE); 
+      myMotor->release();
       //delay(30);
     return delt;
   } else if (delt == 0) {
@@ -280,7 +291,10 @@ void actuate_inputs() {
 
   ////////////// CONTROL FOR VGAP //////////////////////////////////////////////////
   setpoint::vapp=setpoint::vapp + PI_V::Kc*(PI_V::err+PI_V::I/PI_V::Tau_i);  
-
+  
+  if (setpoint::vapp > 10) {setpoint::vapp=10;} /// SATURATION
+  else if (setpoint::vapp < 0) {setpoint::vapp=0;};
+     
   DAC_FXN.Set(mapfloat(setpoint::vapp,0,12,0.96*(DACSTEPS-1),0.46*(DACSTEPS-1)), 
           mapfloat(setpoint::frequency,10,20,0.90*(DACSTEPS-1),0.085*(DACSTEPS-1)));
           
@@ -355,9 +369,9 @@ void loop()
   data::dist = proxsensor.readRangeSingleMillimeters(); // read VL6180X distance
   //addRead(data::dist); // add distance to averaging array
 
-  //PI_V::err = 0.71*setpoint::voltage/2 - data::v_rms*2;
+  PI_V::err = 0.71*setpoint::voltage/2 - data::v_rms*2;
   //PI_V::err = setpoint::voltage  - (6.33*data::v_rms + 1.57);
-  PI_V::err = 0.35*setpoint::voltage/2 - data::v_rms*2; //// ERROR CALCULATION calibrated 09/26/2017
+  //PI_V::err = 0.35*setpoint::voltage/2 - data::v_rms*2; //// ERROR CALCULATION calibrated 09/26/2017
   actuate_inputs();
   PI_V::I = PI_V::I + PI_V::err*(ts-t_prev)*1e-3;
   
