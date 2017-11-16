@@ -1,12 +1,27 @@
-#!/usr/bin/env python3.5
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct 10 16:31:09 2017
 
+@author: Dogan
+"""
+# Do not write bytecode to maintain clean directories
 import sys
 sys.dont_write_bytecode = True
 
+# Imports required packages.
+from casadi import *
+import numpy as NP
+import matplotlib.pyplot as plt
+import scipy.io
+from matplotlib.ticker import MaxNLocator
+from scipy import linalg
+from scipy import signal
+from numpy import random
+from scipy import io as sio
+import matplotlib.pyplot as plt
 import os
 import datetime
 import time
-import numpy as NP
 import cv2
 import argparse
 from pylepton import Lepton
@@ -15,20 +30,20 @@ gpio.setwarnings(False)
 import subprocess
 import select
 import scipy.io as scio
-from scipy import linalg
-from casadi import *
-# Import core code.
-import core
 import serial
-#import asyncio
-#import serial_asyncio
 import crcmod
-#import crcmod.predefinmaed
-import usbtmc
 import visa
 sys.path.append('/home/brandon/repos/python-seabreeze')
 import seabreeze.spectrometers as sb
 import asyncio
+import usbtmc
+
+# Import core code.
+import core
+
+import model_v1 as jet
+import EKF_v1 as observer
+
 
 crc8 = crcmod.predefined.mkCrcFun('crc-8-maxim')
 
@@ -86,16 +101,16 @@ def get_runopts():
   return runopts
 
 ##define input zero point
-U0 = NP.array([(8.0,16.0,1.2,40)], dtype=[('v','>f4'),('f','>f4'),('q','>f4'),('d','>f4')])
+#U0 = NP.array([(8.0,16.0,1.2,40)], dtype=[('v','>f4'),('f','>f4'),('q','>f4'),('d','>f4')])
 
 def send_inputs(device,U):
   """
   Sends input values to the microcontroller to actuate them
   """
-  Vn = U[0]+U0['v'][0]
-  Fn = U[1]+U0['f'][0]
-  Qn = U[2]+U0['q'][0]
-  Dn = Ug[3]+U0['d'][0]
+  Vn = U[0]
+  Fn = U[1]
+  Qn = U[2]
+  Dn = U[3]
   input_string='echo "v,{:.2f}" > /dev/arduino && echo "f,{:.2f}" > /dev/arduino && echo "q,{:.2f}" > /dev/arduino'.format(Vn, Fn, Qn)
   #subprocess.run('echo -e "v,{:.2f}\nf,{:.2f}\nq,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2), shell=True)
   device.reset_input_buffer()
@@ -213,7 +228,6 @@ async def get_intensity_a(f,runopts):
         pass
     
   #print(Is)
-
   return [Is,v_rms,U]
 
 def gpio_setup():
@@ -225,40 +239,22 @@ async def get_oscilloscope_a(instr):
 
     #instr.write(":STOP")
     # Votlage measurement
-    instr.write(":MEAS:SOUR CHAN1")
-    Vrms=float(instr.ask("MEAS:ITEM? PVRMS"))
-    Freq=float(instr.ask("MEAS:ITEM? FREQ"))
-    #cycles on screen
-    c_os=100*6*1e-6*Freq
-
-    instr.write(":MEAS:SOUR CHAN2")
-    Imax=float(instr.ask("MEAS:VMAX?"))*1000   
-    Irms=float(instr.ask("MEAS:ITEM? PVRMS"))*1000   
-
-    if Imax>1e3:
-        print('WARNING: Measured current is too large')
-        time.sleep(0.8)
-        instr.write(":MEAS:SOUR CHAN2")
-        Imax=float(instr.ask("MEAS:VMAX?"))*1000   
-        Irms=float(instr.ask("MEAS:VRMS?"))*1000   
+   
     instr.write(":MEAS:SOUR MATH")
     P=float(instr.ask("MEAS:VAVG?"))
-    Pp=float(instr.ask("MEAS:ITEM? MPAR"))   
-
 
     if P>1e3:
         print('WARNING: Measured power is too large')
         time.sleep(0.8)
         instr.write(":MEAS:SOUR MATH")
         P=float(instr.ask("MEAS:VAVG?"))
-        Pp=float(instr.ask("MEAS:ITEM? MPAR"))   
 
    # instr.write(":RUN")
     time.sleep(0.4)
     
     #print(P)
 
-    return [Vrms,Imax,Irms,P,Pp,Freq]
+    return [P]
 
 async def get_spec_a(spec):
 
@@ -281,8 +277,7 @@ async def asynchronous_measure(f,instr,runopts):
 
         tasks=[asyncio.ensure_future(get_temp_a(runopts)),
               asyncio.ensure_future(get_intensity_a(f,runopts)),
-              asyncio.ensure_future(get_oscilloscope_a(instr)),
-              asyncio.ensure_future(get_spec_a(spec))]
+              asyncio.ensure_future(get_oscilloscope_a(instr))]
         
         await asyncio.wait(tasks)
         return tasks
@@ -290,26 +285,202 @@ async def asynchronous_measure(f,instr,runopts):
 ############################################ INITIALIZE ###########################################
 
 save_file=open('control_dat','a+')
+### IMPORT MAT FILE###
+mat=sio.loadmat('intermed2.mat')
+prevopt=mat['optimal']
+save_file=open('control_dat','a+')
+
+Qx=mat['Qx']
+Qz=mat['Qz']
+Ru=mat['Ru']
+Qt=mat['Qt']
+
+Qk=mat['Qk']
+Rk=mat['Rk']
+
+N=(mat['N'])
+Pk_1=mat['Pk']
+delta=3.0
+
+######################################## MODEL ########################
+#######################################################################
+
+[x, z, u, d, v, xdot, gn, I] = jet.model(delta)
+nx=int(x.dim()[0])
+nz=int(z.dim()[0])
+nu=int(u.dim()[0])
+nv=int(v.dim()[0])
+
+# test integrator
+#x_0=[313.0/300.0, 313.0/300.0, 313.0/300.0, 0.0, 0.0, 0.0, (313.0+20.0)/300.0,  (295.0+20.0)/300.0]
+x_0=[313.0/300.0, 0.0, (313.0+20.0)/300.0,  (295.0+20.0)/300.0]
+
+Ik = I(x0=x_0,p=[4,15,2,4],z0=[3,3,3,3]);
+
+xk = Ik['xf'].full().flatten().tolist()
+zk = Ik['zf'].full().flatten().tolist()
+uk = [4.0,15.0,2.0]
+dis=[0, 0]
+######################## MPC ######################################
+###################################################################
 
 
-#import input data
-OL_opt=scio.loadmat('sweep_with_dist2.mat')
-OL_in=OL_opt['u_opts']
-delay = 1000
-Delta = 150 #how long each input combination is applied in s
-osc_run=1;
-u_opt = [0,0,0,0]
-k=-1
-t0=time.time()      
-if __name__ == "__main__":
+#uss=[4,15,2]
+dss=4
+
+N=6
+u_ub = [5.0,20.0,5.0]
+u_lb = [3.1,10.1,1.5]
+
+du_ub = [0.5,1,0.5]
+du_lb = [-0.8,-1,-0.8]
+
+#x_lb = [-inf, -inf, -inf, -inf, -inf]
+x_lb = [0, 0, 0, 0, 0]
+x_ub = [inf, inf, inf, inf, 10]
+
+#z_lb = [-inf, -inf, -inf, -inf]
+z_lb = [0, 0, 0, 0]
+z_ub = [inf , inf, inf, inf]
+
+xset=[(60.0+273)/300.0, 1.0, (41.0+273)/300.0, (30.0+273)/300.0]
+zset=[5.0, 4.5, 17.0, (60.0+273)/300.0]
+#zss=[3,3,3,3]
+
+#zss = core.rootFinder(alg, nz, args=[uss,dss])
+
+#xss = core.rootFinder(diffs, nx, args=[zss,uss,dss], x0=x_0[0:nx-1])
+### Build instance of MPC problem
+# start with an empty NLP
+q = []
+q0 = []
+lbq = []
+ubq = []
+J = 0
+g = []
+lbg = []
+ubg = []
+# "lift" initial conditions
+
+
+# formulate the NLP
+X0 = MX.sym('X0', nx)
+q  += [X0]
+qz = []
+lbq += xk
+ubq += xk
+Zk = zk
+q0 += xk
+Xk = X0
+U0 = uk
+
+for k in range(N):
+    # new NLP variable for the control
+    Uk = MX.sym('U_' + str(k), nu)
+    q   += [Uk]
+    lbq += [u_lb[i] for i in range(nu)]
+    ubq += [u_ub[i] for i in range(nu)]
+    q0  += uk
     
+ 
+    # next step dynamics 
+    Fk = I(x0=Xk ,p=vertcat(Uk,4),z0=Zk)
+    Xk_end = Fk['xf']
+    Zk_end = Fk['zf']
+
+    #add to stage cost
+    J = J + 10*(Xk[2]-xset[2])**2.0 + 0.001*(Zk[1]-zset[1])**2 #+ 0*core.mtimes((Uk-uss).T,Qr,(Uk-uss))
+    #J=J+Fk['qf'] 
+   # New NLP variable for state at end of interval
+    Xk = MX.sym('X_' + str(k+1), nx)
+    q += [Xk]
+    lbq += [x_lb[i] for i in range(nx)]     
+    ubq += [x_ub[i] for i in range(nx)]     
+    q0 += xk
+    
+    Zk = MX.sym('Z_' + str(k+1), nz)
+    q += [Zk]
+    lbq += [z_lb[i] for i in range(nz)]     
+    ubq += [z_ub[i] for i in range(nz)]     
+    q0 += zk
+    
+    # Add equality constraint
+#    g   += [Xk_end-Xk]
+    g   += [Xk_end-Xk]
+    lbg += [0]*nx
+    ubg += [0]*nx
+    
+    g   += [Zk_end-Zk]
+    lbg += [0]*nz
+    ubg += [0]*nz
+    
+    g   += [Uk-U0]
+    lbg += [du_lb[i] for i in range(nu)]
+    ubg += [du_ub[i] for i in range(nu)]
+    U0=Uk
+    
+#terminal cost
+J = J + 0*(Xk[2]-1.04)**2 
+
+MySolver = "ipopt"
+#MySolver = "sqpmethod"
+
+sol_opts={}
+
+if MySolver == "sqpmethod":
+  sol_opts["qpsol"] = "qpoases"
+  #sol_opts["qpsol_options"] = {"printLevel":"none"}
+elif MySolver == 'ipopt':
+  #sol_opts={'ipopt.hessian_approximation':'limited-memory','ipopt.fixed_variable_treatment':'relax_bounds' ,'ipopt.jacobian_approximation':'finite-difference-values'}
+  sol_opts={'ipopt.hessian_approximation':'limited-memory','ipopt.fixed_variable_treatment':'relax_bounds' ,'ipopt.tol':1e-4, 'ipopt.max_cpu_time':35}
+
+ 
+prob = {'f':J, 'x':vertcat(*q), 'g': vertcat(*g)}
+solver = nlpsol('solver', MySolver, prob, sol_opts)
+
+sol = solver(x0=q0, lbx=lbq, ubx=ubq, lbg=lbg, ubg=ubg)
+optimal=sol['x'].full().flatten()
+###################################################  MAIN LOOP #####################################3
+
+
+if __name__ == "__main__":
+
     runopts = get_runopts() 
     gpio_setup()
     f = serial.Serial('/dev/arduino', baudrate=38400,timeout=1)
 
-############################################ MAIN LOOP ###########################################
+    delay=3
+    counter=0
+    Ts_old=40
+
+    if os.name == 'nt':
+            ioloop = asyncio.ProactorEventLoop() # for subprocess' pipes on Windows
+            asyncio.set_event_loop(ioloop)
+    else:
+            ioloop = asyncio.get_event_loop()
+        
     
+    a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
+           # Ts=tasks[0].result()
+           # print('async:',t1-t0) 
+        
+    ##### UNPACKING TASK OUTS ########
+    Temps=a[0].result()
+    Ts=Temps[0]
+    Ts2=Temps[1]
+    Ts3=Temps[2]
+    Tt=Temps[4]
+ 
+    Ard_out=a[1].result()   
+    Is=Ard_out[0]
+    v_rms=Ard_out[1] 
+    U=Ard_out[2]
+    Osc_out=a[2].result()
+    Vrms=Osc_out[0]
+    P=Osc_out[0]
+
     while True:
+        start_time = time.time()
         #Ts=syncronous_measure(f,instr,runopts)
         #t1=time.time()
         #print('sync:',t1-t0)       
@@ -320,72 +491,76 @@ if __name__ == "__main__":
             asyncio.set_event_loop(ioloop)
         else:
             ioloop = asyncio.get_event_loop()
-          
+        
+        if counter==20:
+            uk=[4.0,15.0,2.0]
+            print('sending inputs..')
+            send_inputs(f,[8.0, 15.0, 2.0, 60])
+            print('inputs sent!')
 ############################################ MEASUREMENT ###########################################
-            a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
+        a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
            # Ts=tasks[0].result()
            # print('async:',t1-t0) 
         
           ##### UNPACKING TASK OUTS ########
-            Temps=a[0].result()
-            Ts=Temps[0]
-            Ts2=Temps[1]
-            Ts3=Temps[2]
-            Tt=Temps[4]
+        Temps=a[0].result()
+        Ts=Temps[0]
+        Ts2=Temps[1]
+        Ts3=Temps[2]
+        Tt=Temps[4]
 
-            Ard_out=a[1].result()   
-            Is=Ard_out[0]
-            v_rms=Ard_out[1]
-            U=Ard_out[2]
-            Osc_out=a[2].result()
-            Vrms=Osc_out[0]
-            Imax=Osc_out[1]
-            Irms=Osc_out[2]
-            P=Osc_out[3]
-            Pp=Osc_out[4]
-            Freq=Osc_out[5]  
-                      
-            O777=a[3].result()
+        Ard_out=a[1].result()   
+        Is=Ard_out[0]
+        v_rms=Ard_out[1]
+        U=Ard_out[2]
+        Osc_out=a[2].result()
+        Vrms=Osc_out[0]
+        P=Osc_out[0]
 
-        print("T(C): {:.2f}, I(a.u.): {:d}, Vrms(V): {:.2f}, Imax(mA): {:.2f}, Irms(mA): {:.2f}, Power(W):{:.2f},{:.2f}".format(Ts,Is,Vrms,Imax,Irms,P,Pp*Freq))
-
-        t1=time.time()-t0
-
-        try:
-            save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},    {:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(time.time(),Ts,Ts2,Ts3,Tt,Is,Vrms,v_rms,Imax,Irms,P,Pp*Freq,Freq/1000,O777,*U,t1))  ##X is never
-            save_file.flush()   
-        except:
-            pass      
-
-
-############################################ ACTUATION ###########################################
-        if t1<delay:  ## initial delay ####
-            delay_flag=0
+                     
+        print("Temperature: {:.2f} Power: {:.2f}".format(Ts,P))
+        if abs(Ts)>100:
+            Ts=Ts_old
+            print('WARNING: Old value of Ts is used')
         else:
-            delay_flag=1     
+            Ts_old=Ts
+
+        if Is<0:
+            Is=Is_old
+            print('WARNING: Old value of Is is used')
+        else:
+            Is_old=Is
 
 
-        if delay_flag==1:  ## actual actuation ####
-            if t1<Delta:
-                k=k
-            else:
-                k=k+1
-                print("Next increment...")
-                
-                u_opt=OL_in[k,:]
-         
-                U = u_opt
+################################### OBSERVER ###################################################
 
-                Ureal = U + NP.array([U0['v'],U0['f'],U0['q']])
-                #print(Ureal.shape)
-                print("sending inputs...")
-                send_inputs(f,U)
-                print("inputs sent!")
-                t0=time.time()      
+        Ik = I(x0=xk,p=vertcat(uk,4),z0=[1,1,1,1]);
+        #xk = optimal[(nx+nu):(nx+nu+nx)]
+        xk_pred=Ik['xf'].full().flatten()
+        zk_pred=Ik['zf'].full().flatten()
 
+        y_hat_k=[-(xk_pred[2]+dis[0]-(Ts+273)/300), -(xk[3]-(Ts3+273)/300), -(zk_pred[1]+dis[1]-P)]
+  
 
-            ## print(tasks)
+        [xk,dis,zk,Pk]=observer.EKF(x,z,u,d,v,xdot,gn,y_hat_k,Pk_1,Qk,Rk,xk_pred,dis,zk_pred,uk)
+            
 
-            ##ioloop.close()
-            ##ioloop.close()
+        Pk_1=Pk
+            
+        #xk[2]=xk[2]+dis[0]
+    
+        print("Est. Temperature: {:.2f} Est. Power: {:.2f}".format((xk[2]+dis[0])*300-273,zk[1]+dis[1]))
 
+      
+####################################### SAVE ##############################################################################
+        save_file.write("{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n".format(time.time(),Ts,P,*U,counter,(xset[2]*300.0-273.0),zset[1],(xk[2]+dis[0])*300.0-273.0,zk[1]+dis[1],dis[0]*300, dis[1]))  ##X is never referenced!
+                  #print()
+        save_file.flush()
+
+        end_time = time.time()
+        time_el = end_time - start_time
+
+        if time_el < delta:
+            time.sleep(delta - time_el)
+                ## increment the loop counter 
+        counter=counter+1
