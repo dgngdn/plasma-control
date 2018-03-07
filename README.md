@@ -1,13 +1,7 @@
-# Plasma Analysis and Process Control
+# Advanced Process Control for Atmospheric Pressure Plasmas
 
-Check out an introductory video on [YouTube](https://www.youtube.com/watch?v=g-D1YUygGis&t=2s&list=PLv1hJnaxTVPBqW_9ZYDJsLQ4n_xtNlmFU&index=14),
-and see my [colloquium presentation ](https://www.brandoncurtis.com/present/colloquium/) on the web in reveal.js.
+Check out the original repository for [**Plasma Analysis and Control**][https://github.com/brandoncurtis/plasma-control]
 
-Due for major reorganization, just as soon as I file my thesis...
+See the jet moving!
 
-In the meantime, visit [the GravesLab website](http://www.graveslab.org/).
-
-![Helium plasma jet](https://raw.githubusercontent.com/brandoncurtis/plasma-control/master/results/bruggeman-jet.jpg)
-
-![power versus helium flowrate](https://raw.githubusercontent.com/brandoncurtis/plasma-control/master/results/Set_q-power_varied_Set_f.png)
-
+![Helium plasma jet](/results/moving_jet.gif)
