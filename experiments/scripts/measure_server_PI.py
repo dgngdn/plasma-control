@@ -216,12 +216,12 @@ async def get_temp_a(runopts):
         #print(Ts_max, Ts)
         Tt = NP.amax(data[0:5,:,0]) / 100 - 273;
         mm= NP.where( data == NP.amax(data) )
-        mm=[26,58] ######################################## THIS NEEDS CALIBRATION #############
+        #mm=[26,58] ######################################## THIS NEEDS CALIBRATION #############
         Ts_lin=data[int(mm[0]),:,0] /100 - 273
         yy=Ts_lin-Ts_lin[0]
-        gg=interp1d(yy,range(80))
-        sig=gg(0.6*NP.amax(yy))-mm[1]
-        print('sig',sig)
+        #gg=interp1d(yy,range(80))
+        #sig=gg(0.6*NP.amax(yy))-mm[1]
+        #print('sig',sig)
         Ts2 = (Ts_lin[int(mm[1])+2]+Ts_lin[int(mm[1])-2])/2
         Ts3 = (Ts_lin[int(mm[1])+12]+Ts_lin[int(mm[1])-12])/2
         for line in data:
@@ -252,7 +252,7 @@ async def get_temp_a(runopts):
       print("Lepton restart completed!\n\n")
   
   #print(Ts)
-  return [Ts, Ts2, Ts3, Ts_lin[49:79], Tt, sig, data]
+  return [Ts, Ts2, Ts3, Ts_lin[mm[1]-12:mm[1]+12], Tt, sig, data]
 
 async def get_intensity_a(f,runopts):
   """
@@ -471,11 +471,18 @@ while True:
             Pold=P
 
         tm_el=time.time()-t0
-        CEM=CEM+tm_el*(9.74e-14/60.0)*np.exp(np.multiply(0.6964,Ts_lin))
-        #print(CEM)
+        ##interpolate temperature to shift position
+        x_gen=range(25)
+        x_now=NP.array(range(25))-13+Y_pos #TODO define Y_pos and position vector
+
+        Tshift=interp1d(x_now,Ts_lin,bounds_error=False,fill_value=min(Ts_lin))(x_gen)
+        #random comment
+
+        CEM=CEM+tm_el*(9.74e-14/60.0)*np.exp(np.multiply(0.6964,Tshift))
+        #   print(CEM)
 #        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format#(Ts,Ts2,P,tm_el,x_pos,y_pos,d_sep,T_emb,Ts3)
 
-        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
+        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
         print(msg)
 
        
