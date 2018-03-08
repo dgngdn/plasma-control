@@ -339,7 +339,7 @@ async def asynchronous_measure(f,instr,runopts):
 ############################################ INITIALIZE ###########################################
 curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
 sv_fname=os.path.join(runopts.dir,"control_dat_{}".format(curtime))
-
+#random comment
 save_file=open(sv_fname,'a+')
 save_file.write('time,Ts,Ts2,Ts3,Tt,T_amb,Is,Vrms,v_rms,Imax,Irms,I_emb,P,Freq/1000,O777,O844,N391,V,F,Q,D,t1\n')
 infile=runopts.inputs
