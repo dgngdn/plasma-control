@@ -33,7 +33,7 @@ import seabreeze.spectrometers as sb
 import asyncio
 import usbtmc
 import socket
-from scipy.interpolate import interp1d 
+from scipy.interpolate import interp1d
 # Import core code.
 import core
 
@@ -66,7 +66,7 @@ devices = sb.list_devices()
 t_int=12000*4
 print("Available devices {}".format(devices))
 spec = sb.Spectrometer(devices[0])
-print("Using {}".format(devices[0])) 
+print("Using {}".format(devices[0]))
 spec.integration_time_micros(t_int)
 print("integratiopn time {} seconds.".format(t_int/1e6))
 time.sleep(0.5)
@@ -100,7 +100,7 @@ def get_runopts():
 
 ##define input zero point
 #U0 = NP.array([(8.0,16.0,1.2,40)], dtype=[('v','>f4'),('f','>f4'),('q','>f4'),('d','>f4')])
-runopts = get_runopts() 
+runopts = get_runopts()
 
 SAVEDIR_therm = os.path.join(os.getcwd(),runopts.dir,"thermography") # path to the directory to save thermography files
 if runopts.save_therm and not os.path.exists(SAVEDIR_therm):
@@ -153,7 +153,7 @@ def send_inputs(device,U):
   input_string='echo "v,{:.2f}" > /dev/arduino && echo "f,{:.2f}" > /dev/arduino && echo "q,{:.2f}" > /dev/arduino'.format(Vn, Fn, Qn)
   #subprocess.run('echo -e "v,{:.2f}\nf,{:.2f}\nq,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2), shell=True)
   device.reset_input_buffer()
- 
+
   subprocess.run('echo "" > /dev/arduino', shell=True)
   time.sleep(0.0500)
 
@@ -169,7 +169,7 @@ def send_inputs(device,U):
   subprocess.run('echo "d,{:.2f}" > /dev/arduino'.format(Dn), shell=True)
   time.sleep(0.0500)
 
-  subprocess.run('echo "x,{:.2f}" > /dev/arduino'.format(Xn), shell=True)  
+  subprocess.run('echo "x,{:.2f}" > /dev/arduino'.format(Xn), shell=True)
   time.sleep(0.0500)
 
   subprocess.run('echo "y,{:.2f}" > /dev/arduino'.format(Yn), shell=True)
@@ -179,6 +179,22 @@ def send_inputs(device,U):
   time.sleep(0.0500)
 
   print("input values: {:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}".format(Vn,Fn,Qn,Dn,Xn,Yn,Pn))
+
+def send_inputs_v_only(device,Vn):
+  """
+  Sends input values to the microcontroller to actuate them
+  """
+  Vn = U[0]
+  #subprocess.run('echo -e "v,{:.2f}\nf,{:.2f}\nq,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2), shell=True)
+  device.reset_input_buffer()
+
+  subprocess.run('echo "" > /dev/arduino', shell=True)
+  time.sleep(0.0500)
+
+  subprocess.run('echo "v,{:.2f}" > /dev/arduino'.format(Vn), shell=True)
+  time.sleep(0.0500)
+
+  print("input value: {:.2f}".format(Vn))
 
 def is_valid(line):
   """
@@ -250,7 +266,7 @@ async def get_temp_a(runopts):
       time.sleep(0.5)
       gpio.output(35, gpio.LOW)
       print("Lepton restart completed!\n\n")
-  
+
   #print(Ts)
   return [Ts, Ts2, Ts3, Ts_lin[mm[1]-12:mm[1]+12], Tt, sig, data]
 
@@ -291,11 +307,11 @@ async def get_intensity_a(f,runopts):
       #    V = 0
       #    f = 0
       #    q = 0
-       
+
         U=[V,f,q,dsep]
       except:
         pass
-    
+
   #print(Is)
   return [Is,v_rms,U,x_pos,y_pos,dsep,T_emb]
 
@@ -308,7 +324,7 @@ async def get_oscilloscope_a(instr):
 
    # instr.write(":STOP")
     # Votlage measurement
-   
+
     instr.write(":MEAS:SOUR MATH")
     P=float(instr.ask("MEAS:VAVG?"))
 
@@ -320,7 +336,7 @@ async def get_oscilloscope_a(instr):
 
    # instr.write(":RUN")
    # time.sleep(0.4)
-    
+
     #print(P)
 
     return [P]
@@ -330,7 +346,7 @@ async def get_spec_a(spec):
     wv=spec.wavelengths()
     sp_int=spec.intensities()
     O777=max(sp_int[1200:1250])
-    
+
     #print(O777)
     return O777
 
@@ -340,7 +356,7 @@ async def asynchronous_measure(f,instr,runopts):
         tasks=[asyncio.ensure_future(get_temp_a(runopts)),
               asyncio.ensure_future(get_intensity_a(f,runopts)),
               asyncio.ensure_future(get_oscilloscope_a(instr))]
-        
+
         await asyncio.wait(tasks)
         return tasks
 
@@ -352,7 +368,7 @@ Ts2_old=32
 Ts3_old=25
 
 Pold=2
-runopts = get_runopts() 
+runopts = get_runopts()
 gpio_setup()
 f = serial.Serial('/dev/arduino', baudrate=38400,timeout=1)
 
@@ -363,7 +379,7 @@ else:
     ioloop = asyncio.get_event_loop()
 
 print(instr)
-a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))     
+a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
 
 Temps=a[0].result()
 Ts=Temps[0]
@@ -372,13 +388,13 @@ Ts3=Temps[2]
 Ts_lin=Temps[3]
 Tt=Temps[4]
 sig=Temps[5]
- 
-Ard_out=a[1].result()   
+
+Ard_out=a[1].result()
 Is=Ard_out[0]
-v_rms=Ard_out[1] 
-x_pos=Ard_out[3] 
-y_pos=Ard_out[4] 
-d_sep=Ard_out[5] 
+v_rms=Ard_out[1]
+x_pos=Ard_out[3]
+y_pos=Ard_out[4]
+d_sep=Ard_out[5]
 
 Osc_out=a[2].result()
 Vrms=Osc_out[0]
@@ -406,8 +422,24 @@ c.settimeout(0.2)
 
 print('Got connection from', addr)
 
-U=[8.0,20.0,2.0,4.0,0.0,0.0,100.0]
-t_el=0
+u_ub=[10.,20,4.,100.]
+u_lb=[6.,10.,1.,100.]
+
+V=6.0 #initial applied voltage
+Tset=40 #initial setpoint
+
+t_el=0  #seconds sup. control timer
+t_move=60.0 #seconds movement time
+Delta_y=1.5 #mm
+t_elps=0 #seconds movement timer
+t_mel=0 #PI control timer
+I1=0
+Y_pos=0
+
+############ initialize save document ################################
+sv_fname=os.path.join(runopts.dir,"control_dat_{}".format(curtime)
+save_file=open(sv_fname,'a+')
+save_file.write('time,Tset,Ts,Ts2,Ts3,P,Freq/1000,V,F,Q,D,x_pos,y_pos,t1\n')
 
 while True:
     try:
@@ -415,20 +447,16 @@ while True:
             data=c.recv(512).decode()
             data_str=data.split(',')
             data_flt=[float(i) for i in data_str]
-            U=data_flt[0:7]
-            t_el=data_flt[7]
+            Tset=data_flt[0]
+            t_el=data_flt[1]
+
+            print('Optimal Reference Recieved!')
+            print('Tref: {:6.2f}, t_el:{:6.2f}'.format(Tset,t_el))
         except:
             print('no data yet')
-        print('Optimal Inputs Recieved!')
-        print(U)
-        print(t_el)
 
-        print("Sending inputs...")
-        send_inputs(f,U)
-        print("Inputs sent!")
-        
         t0=time.time()
-        a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))     
+        a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
 
         Temps=a[0].result()
         Ts=Temps[0]
@@ -437,16 +465,15 @@ while True:
         Ts_lin=Temps[3]
         Tt=Temps[4]
         sig=Temps[5]
-        
 
-        Ard_out=a[1].result()   
+        Ard_out=a[1].result()
         Is=Ard_out[0]
-        v_rms=Ard_out[1] 
+        v_rms=Ard_out[1]
         U_m=Ard_out[2]
-        x_pos=Ard_out[3] 
-        y_pos=Ard_out[4] 
-        d_sep=Ard_out[5] 
-        T_emb=Ard_out[6] 
+        x_pos=Ard_out[3]
+        y_pos=Ard_out[4]
+        d_sep=Ard_out[5]
+        T_emb=Ard_out[6]
 
         Osc_out=a[2].result()
         Vrms=Osc_out[0]
@@ -470,28 +497,53 @@ while True:
         else:
             Pold=P
 
+        ########################## PI CONTROLS ################################
+        Kp1=2.7
+        Tp1=28.8
+        lamb1=85.0
+
+        Kc1=Tp1/(Kp1*lamb1)
+        Ti1=100*Tp1
+        e1=Tset-Ts
+
+        u1= V+Kc1*(e1+I1/Ti1)
+
+        if round(V,2)>=u_ub[0] and Tset>=Ts:
+            I1 = I1
+            V=u_ub[0]
+        elif round(V,2)>=u_ub[0] and Tset<Ts:
+            I1 = I1 + e1*t_mel
+            V=u_ub[0]
+        elif round(V,2)<=u_lb[0] and Tset<=Ts:
+            I1 = I1
+            V=u_lb[0]
+        elif round(V,2)<=u_lb[0] and Tset>Ts:
+            I1 = I1 + e1*t_mel
+            V=u_lb[0]
+        else:
+            I1=I1+e1*t_mel
+            V=round(u1,2)
+
+        ########################################################################
+        print("Sending inputs...")
+        send_inputs(f,V)
+        print("Inputs sent!")
+
         tm_el=time.time()-t0
         ##interpolate temperature to shift position
         x_gen=range(25)
-        x_now=NP.array(range(25))-13+Y_pos #TODO define Y_pos and position vector
+        x_now=NP.array(range(25))-13+Y_pos
 
         Tshift=interp1d(x_now,Ts_lin,bounds_error=False,fill_value=min(Ts_lin))(x_gen)
-        #random comment
-
         CEM=CEM+tm_el*(9.74e-14/60.0)*np.exp(np.multiply(0.6964,Tshift))
-        #   print(CEM)
-#        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format#(Ts,Ts2,P,tm_el,x_pos,y_pos,d_sep,T_emb,Ts3)
-
         msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
         print(msg)
 
-       
         c.send(msg.encode())
         print('Measured outputs sent')
-       
-#        if delta>t_el:
-#          # time.sleep(delta-t_el-tm_el)
-#           time.sleep(delta-t_el)
+
+        save_file.write('{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(time.time(),Tset,Ts,Ts2,Ts3,P,*U_m,x_pos,y_pos)
+
         if KeyboardInterrupt==1:
             sys.exit(1)
 
