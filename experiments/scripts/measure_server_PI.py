@@ -180,21 +180,21 @@ def send_inputs(device,U):
 
   print("input values: {:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}".format(Vn,Fn,Qn,Dn,Xn,Yn,Pn))
 
-def send_inputs_v_only(device,Vn):
+def send_inputs_v_only(device,Vn,Yn):
   """
   Sends input values to the microcontroller to actuate them
   """
   Vn = U[0]
-  #subprocess.run('echo -e "v,{:.2f}\nf,{:.2f}\nq,{:.2f}" > /dev/arduino'.format(U[:,0][0]+8, U[:,1][0]+16, U[:,2][0]+1.2), shell=True)
   device.reset_input_buffer()
 
   subprocess.run('echo "" > /dev/arduino', shell=True)
   time.sleep(0.0500)
-
   subprocess.run('echo "v,{:.2f}" > /dev/arduino'.format(Vn), shell=True)
   time.sleep(0.0500)
+  subprocess.run('echo "y,{:.2f}" > /dev/arduino'.format(Yn), shell=True)
+  time.sleep(0.0500)
 
-  print("input value: {:.2f}".format(Vn))
+  print("input values: V:{:.2f},Y:{:.2f}".format(Vn,Yn))
 
 def is_valid(line):
   """
@@ -481,6 +481,7 @@ while True:
         P=Osc_out[0]
 
         print("Temperature: {:.2f} Power: {:.2f}".format(Ts,P))
+        print("Inputs:{:.2f},{:.2f},{:.2f},{:.2f}".format(*U_m))
         if abs(Ts)>90:
             Ts=Ts_old
             Ts2=Ts2_old
@@ -524,12 +525,19 @@ while True:
             I1=I1+e1*t_mel
             V=round(u1,2)
 
-        ########################################################################
+        ########################### Movement ##############################
+        if t_elps>=t_move
+            print('Moving')
+            Y_pos=Y_pos+Delta_y
+            t_elps=0
+
+        ######################### Send inputs #########################
         print("Sending inputs...")
-        send_inputs(f,V)
+        send_inputs(f,V,Y_pos)
         print("Inputs sent!")
 
         tm_el=time.time()-t0
+        t_elps=t_elps+tm_el
         ##interpolate temperature to shift position
         x_gen=range(25)
         x_now=NP.array(range(25))-13+Y_pos
