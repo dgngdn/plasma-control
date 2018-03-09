@@ -184,7 +184,6 @@ def send_inputs_v_only(device,Vn,Yn):
   """
   Sends input values to the microcontroller to actuate them
   """
-  Vn = U[0]
   device.reset_input_buffer()
 
   subprocess.run('echo "" > /dev/arduino', shell=True)
@@ -240,6 +239,7 @@ async def get_temp_a(runopts):
         #print('sig',sig)
         Ts2 = (Ts_lin[int(mm[1])+2]+Ts_lin[int(mm[1])-2])/2
         Ts3 = (Ts_lin[int(mm[1])+12]+Ts_lin[int(mm[1])-12])/2
+        Ts_lin_out=Ts_lin[int(mm[1])-13:int(mm[1])+12]
         for line in data:
           l = len(line)
           if (l != 80):
@@ -268,7 +268,7 @@ async def get_temp_a(runopts):
       print("Lepton restart completed!\n\n")
 
   #print(Ts)
-  return [Ts, Ts2, Ts3, Ts_lin[mm[1]-12:mm[1]+12], Tt, sig, data]
+  return [Ts, Ts2, Ts3, Ts_lin_out, Tt, data]
 
 async def get_intensity_a(f,runopts):
   """
@@ -401,6 +401,7 @@ Vrms=Osc_out[0]
 P=Osc_out[0]
 
 delta=3.0
+Ts_lin_old=Ts_lin
 #print(Ts)
 #print(P)
 msg="Temperature: {:.2f} Power: {:.2f}".format(Ts,P)
@@ -425,25 +426,30 @@ print('Got connection from', addr)
 u_ub=[10.,20,4.,100.]
 u_lb=[6.,10.,1.,100.]
 
-V=6.0 #initial applied voltage
+V=8.0 #initial applied voltage
 Tset=40 #initial setpoint
 
 t_el=0  #seconds sup. control timer
+tm_el=0
 t_move=60.0 #seconds movement time
+t_move_now=time.time()
 Delta_y=1.5 #mm
-t_elps=0 #seconds movement timer
+#_elps=0 #seconds movement timer
 t_mel=0 #PI control timer
 I1=0
 Y_pos=0
 
 ############ initialize save document ################################
-sv_fname=os.path.join(runopts.dir,"control_dat_{}".format(curtime)
-save_file=open(sv_fname,'a+')
-save_file.write('time,Tset,Ts,Ts2,Ts3,P,Freq/1000,V,F,Q,D,x_pos,y_pos,t1\n')
+curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
+sv_fname = os.path.join(runopts.dir,"PI_Server_Out_{}".format(curtime))
+save_fl=open(sv_fname,'a+')
+save_fl.write('time,Tset,Ts,Ts2,Ts3,P,Freq/1000,V,F,Q,D,x_pos,y_pos,t1\n')
 
 while True:
     try:
+        t0=time.time()
         try:
+
             data=c.recv(512).decode()
             data_str=data.split(',')
             data_flt=[float(i) for i in data_str]
@@ -455,7 +461,7 @@ while True:
         except:
             print('no data yet')
 
-        t0=time.time()
+
         a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
 
         Temps=a[0].result()
@@ -486,12 +492,13 @@ while True:
             Ts=Ts_old
             Ts2=Ts2_old
             Ts3=Ts3_old
+            Ts_lin=Ts_lin_old
             print('WARNING: Old value of Ts is used')
         else:
             Ts_old=Ts
             Ts2_old=Ts2
             Ts3_old=Ts3
-
+            Ts_lin_old=Ts_lin
         if abs(P)>10:
             P=Pold
             print('WARNING: Old value of Ts is used')
@@ -509,40 +516,41 @@ while True:
 
         u1= V+Kc1*(e1+I1/Ti1)
 
-        if round(V,2)>=u_ub[0] and Tset>=Ts:
+        if round(u1,2)>=u_ub[0] and Tset>=Ts:
             I1 = I1
             V=u_ub[0]
-        elif round(V,2)>=u_ub[0] and Tset<Ts:
+        elif round(u1,2)>=u_ub[0] and Tset<Ts:
             I1 = I1 + e1*t_mel
             V=u_ub[0]
-        elif round(V,2)<=u_lb[0] and Tset<=Ts:
+        elif round(u1,2)<=u_lb[0] and Tset<=Ts:
             I1 = I1
             V=u_lb[0]
-        elif round(V,2)<=u_lb[0] and Tset>Ts:
+        elif round(u1,2)<=u_lb[0] and Tset>Ts:
             I1 = I1 + e1*t_mel
             V=u_lb[0]
         else:
             I1=I1+e1*t_mel
             V=round(u1,2)
 
+        print(V)
         ########################### Movement ##############################
-        if t_elps>=t_move
+        if (time.time()-t_move_now)>=t_move:
             print('Moving')
             Y_pos=Y_pos+Delta_y
-            t_elps=0
+            t_move_now=time.time()
 
         ######################### Send inputs #########################
         print("Sending inputs...")
-        send_inputs(f,V,Y_pos)
+        send_inputs_v_only(f,V,Y_pos)
         print("Inputs sent!")
 
-        tm_el=time.time()-t0
-        t_elps=t_elps+tm_el
         ##interpolate temperature to shift position
-        x_gen=range(25)
-        x_now=NP.array(range(25))-13+Y_pos
+        x_gen=range(25) #range of points controlled  [0-25mm]
+        x_now=NP.linspace(-13.0*2.89,12.0*2.89,25)+Y_pos #positions corresponding to current measurement
+
 
         Tshift=interp1d(x_now,Ts_lin,bounds_error=False,fill_value=min(Ts_lin))(x_gen)
+        print(Ts_lin)
         CEM=CEM+tm_el*(9.74e-14/60.0)*np.exp(np.multiply(0.6964,Tshift))
         msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
         print(msg)
@@ -550,7 +558,10 @@ while True:
         c.send(msg.encode())
         print('Measured outputs sent')
 
-        save_file.write('{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(time.time(),Tset,Ts,Ts2,Ts3,P,*U_m,x_pos,y_pos)
+        save_fl.write('{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(time.time(),Tset,Ts,Ts2,Ts3,P,*U_m,x_pos,y_pos,tm_el))
+        save_fl.flush()
+
+        tm_el=time.time()-t0
 
         if KeyboardInterrupt==1:
             sys.exit(1)
