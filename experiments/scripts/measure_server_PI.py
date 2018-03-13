@@ -180,7 +180,7 @@ def send_inputs(device,U):
 
   print("input values: {:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}".format(Vn,Fn,Qn,Dn,Xn,Yn,Pn))
 
-def send_inputs_v_only(device,Vn,Yn):
+def send_inputs_v_only(device,Vn,Yn,Dn):
   """
   Sends input values to the microcontroller to actuate them
   """
@@ -192,7 +192,8 @@ def send_inputs_v_only(device,Vn,Yn):
   time.sleep(0.0500)
   subprocess.run('echo "y,{:.2f}" > /dev/arduino'.format(Yn), shell=True)
   time.sleep(0.0500)
-
+  subprocess.run('echo "d,{:.2f}" > /dev/arduino'.format(Dn), shell=True)
+  time.sleep(0.0500)
   print("input values: V:{:.2f},Y:{:.2f}".format(Vn,Yn))
 
 def is_valid(line):
@@ -281,6 +282,9 @@ async def get_intensity_a(f,runopts):
     v_rms=0
     Is=0
     U=[0,0,0]
+    x_pos=0
+    y_pos=0
+    T_emb=0
     while run:
       try:
         f.reset_input_buffer()
@@ -298,7 +302,6 @@ async def get_intensity_a(f,runopts):
           I_emb=float(line.split(',')[9])
           x_pos=float(line.split(',')[10])
           y_pos=float(line.split(',')[11])
-          print('xpos', x_pos)
         else:
           print("CRC8 failed. Invalid line!")
       #    run = False
@@ -426,18 +429,19 @@ print('Got connection from', addr)
 u_ub=[10.,20,4.,100.]
 u_lb=[6.,10.,1.,100.]
 
-V=8.0 #initial applied voltage
+V=7.5 #initial applied voltage
 Tset=40 #initial setpoint
 
 t_el=0  #seconds sup. control timer
 tm_el=0
-t_move=60.0 #seconds movement time
+t_move=4.*60.0 #seconds movement time
 t_move_now=time.time()
-Delta_y=1.5 #mm
+Delta_y=4.*1.5 #mm
 #_elps=0 #seconds movement timer
 t_mel=0 #PI control timer
 I1=0
 Y_pos=0
+Dsep=4.0
 
 ############ initialize save document ################################
 curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
@@ -508,10 +512,11 @@ while True:
         ########################## PI CONTROLS ################################
         Kp1=2.7
         Tp1=28.8
-        lamb1=85.0
+        lamb1=500.0
+#        lamb1=200.0
 
         Kc1=Tp1/(Kp1*lamb1)
-        Ti1=100*Tp1
+        Ti1=Tp1
         e1=Tset-Ts
 
         u1= V+Kc1*(e1+I1/Ti1)
@@ -539,20 +544,30 @@ while True:
             Y_pos=Y_pos+Delta_y
             t_move_now=time.time()
 
+ #       if (time.time()-t_move_now)>=t_move:
+ #           print('Moving')
+ #           if Dsep>4.0:
+ #              Dsep=4.0
+ #           else:
+ #               Dsep=6.0
+
+            t_move_now=time.time()
+
         ######################### Send inputs #########################
         print("Sending inputs...")
-        send_inputs_v_only(f,V,Y_pos)
+        send_inputs_v_only(f,V,Y_pos,Dsep)
         print("Inputs sent!")
 
         ##interpolate temperature to shift position
         x_gen=range(25) #range of points controlled  [0-25mm]
-        x_now=NP.linspace(-13.0*2.89,12.0*2.89,25)+Y_pos #positions corresponding to current measurement
+        x_now=NP.linspace(-13.0*2.89,12.0*2.89,25)+3+Y_pos #positions corresponding to current measurement
 
 
         Tshift=interp1d(x_now,Ts_lin,bounds_error=False,fill_value=min(Ts_lin))(x_gen)
         print(Ts_lin)
         CEM=CEM+tm_el*(9.74e-14/60.0)*np.exp(np.multiply(0.6964,Tshift))
-        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
+#        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},#{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
+        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*Ts_lin)
         print(msg)
 
         c.send(msg.encode())
@@ -562,6 +577,10 @@ while True:
         save_fl.flush()
 
         tm_el=time.time()-t0
+
+        if tm_el<1.3:
+            time.sleep(1.3-tm_el)
+            tm_el=1.3
 
         if KeyboardInterrupt==1:
             sys.exit(1)
