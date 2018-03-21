@@ -94,6 +94,7 @@ namespace setpoint {
   float vapp = 0;
   float frequency = 10;
   float flowrate = 0;
+  float flowrate2 = 0;
   float dist = 400;
   float x_pos = 0;
   float y_pos = 0;
@@ -255,8 +256,21 @@ void manual_input(String input) {
       #endif
       actuate_inputs();
       break;
+
+               
+    case 'o' :
+      // you sent q,###
+      if (input.substring(2).toFloat() > 10) {setpoint::flowrate=10;}
+      else if (input.substring(2).toFloat() < 0) {setpoint::flowrate=0;}
+      else { 
+      setpoint::flowrate2 = input.substring(2).toFloat();};
+      #if DEBUG
+        Serial.println("Second flowrate set!");wa
+      #endif
+      actuate_inputs();
+      break;
       
-      case 'd' :
+     case 'd' :
       // you sent d,###
       if (input.substring(2).toFloat() > 15) {setpoint::dist=1500;}
       else if (input.substring(2).toFloat() < 0) {setpoint::dist=0;}
@@ -384,7 +398,7 @@ void actuate_inputs() {
  //      mapfloat(setpoint::frequency,10,20,0.90*(DACSTEPS-1),0.085*(DACSTEPS-1)));
   
   // MFC DAC
-  DAC_MFC.Set(mapfloat(setpoint::flowrate,0,10,0,4095),0);
+  DAC_MFC.Set(mapfloat(setpoint::flowrate,0,10,0,4095),mapfloat(setpoint::flowrate2,0,20,0,4095));
 
  location::delta=move_to_pos(location::delta, dMotor);
  location::cur_loc = -location::delta + setpoint::dist;
@@ -510,6 +524,9 @@ void loop()
   mystring += location::cur_x/10;
   mystring += ',';
   mystring += location::cur_y/10;
+  mystring += ',';
+  mystring += setpoint::flowrate2;
+
   // calculate the CRC8 of the string
   // first, convert string to array of chars (signed ints)
   char mychars[mystring.length()+1]; 
