@@ -101,8 +101,9 @@ def get_runopts():
 ##define input zero point
 #U0 = NP.array([(8.0,16.0,1.2,40)], dtype=[('v','>f4'),('f','>f4'),('q','>f4'),('d','>f4')])
 runopts = get_runopts()
+curtime1 = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
 
-SAVEDIR_therm = os.path.join(os.getcwd(),runopts.dir,"thermography") # path to the directory to save thermography files
+SAVEDIR_therm = os.path.join(os.getcwd(),runopts.dir,"{}_thermography".format(curtime1)) # path to the directory to save thermography files
 if runopts.save_therm and not os.path.exists(SAVEDIR_therm):
   print("Creating directory: {}".format(SAVEDIR_therm))
   os.makedirs(SAVEDIR_therm)
@@ -210,10 +211,43 @@ def crc_check(data,crc):
   print("crc:{} calculated: {} data: {}".format(crc,crc_from_data,data))
   return crc == crc_from_data
 
+def get_temp_max(runopts):
+  """
+  Gets treatment temperature with the Lepton thermal camera
+  """
+  if runopts.faket:
+    return 24
 
+  run = True
+  for rr in range(8):
+    try:
+      with Lepton("/dev/spidev0.1") as l:
+        data,_ = l.capture(retry_limit = 3)
+      if l is not None:
+         Ts = NP.amax(data[6:60,:,0]) / 100 - 273;
+         Tt = NP.amax(data[0:5,:,0]) / 100 - 273;
+         mm= NP.where( data == NP.amax(data) )
+         print('max point at {},{}'.format(*mm))
+         for line in data:
+            l = len(line)
+            if (l != 80):
+                print("error: should be 80 columns, but we got {}".format(l))
+            elif Ts > 150:
+                print("Measured temperature is too high: {}".format(Ts))
+         time.sleep(0.070)
+         run = False
+    except Exception as e:
+      print(e)
+      print("\nHardware error on the thermal camera. Lepton restarting...")
+      gpio.output(35, gpio.HIGH)
+      time.sleep(0.5)
+      gpio.output(35, gpio.LOW)
+      print("Lepton restart completed!\n\n")
+
+  return [int(mm[0]), int(mm[1])]
 ############################################ ASYNC DEFS ##################################################33
 
-async def get_temp_a(runopts):
+async def get_temp_a(runopts,a):
   """
   Gets treatment temperature with the Lepton thermal camera
   """
@@ -226,13 +260,13 @@ async def get_temp_a(runopts):
       with Lepton("/dev/spidev0.1") as l:
         data,_ = l.capture(retry_limit = 3)
       if l is not None:
+        mm=a ######################################## THIS NEEDS CALIBRATION #############
         ##print(data[10:80]);
         Ts = NP.amax(data[6:60,:,0]) / 100 - 273;
         #Ts=data[25,58,0]/100-273 #calibrated for the long jet
         #print(Ts_max, Ts)
         Tt = NP.amax(data[0:5,:,0]) / 100 - 273;
-        mm= NP.where( data == NP.amax(data) )
-        #mm=[26,58] ######################################## THIS NEEDS CALIBRATION #############
+        #mm= NP.where( data == NP.amax(data) )
         Ts_lin=data[int(mm[0]),:,0] /100 - 273
         yy=Ts_lin-Ts_lin[0]
         #gg=interp1d(yy,range(80))
@@ -240,7 +274,7 @@ async def get_temp_a(runopts):
         #print('sig',sig)
         Ts2 = (Ts_lin[int(mm[1])+2]+Ts_lin[int(mm[1])-2])/2
         Ts3 = (Ts_lin[int(mm[1])+12]+Ts_lin[int(mm[1])-12])/2
-        Ts_lin_out=Ts_lin[int(mm[1])-13:int(mm[1])+12]
+        Ts_lin_out=Ts_lin[int(mm[1])-13:int(mm[1])+13]
         for line in data:
           l = len(line)
           if (l != 80):
@@ -284,6 +318,7 @@ async def get_intensity_a(f,runopts):
     U=[0,0,0]
     x_pos=0
     y_pos=0
+    dsep=0
     T_emb=0
     while run:
       try:
@@ -354,9 +389,9 @@ async def get_spec_a(spec):
     return O777
 
 
-async def asynchronous_measure(f,instr,runopts):
+async def asynchronous_measure(f,instr,runopts,max_pt):
 
-        tasks=[asyncio.ensure_future(get_temp_a(runopts)),
+        tasks=[asyncio.ensure_future(get_temp_a(runopts,max_pt)),
               asyncio.ensure_future(get_intensity_a(f,runopts)),
               asyncio.ensure_future(get_oscilloscope_a(instr))]
 
@@ -374,6 +409,7 @@ Pold=2
 runopts = get_runopts()
 gpio_setup()
 f = serial.Serial('/dev/arduino', baudrate=38400,timeout=1)
+max_pt=get_temp_max(runopts) ##get maximum point
 
 if os.name == 'nt':
     ioloop = asyncio.ProactorEventLoop() # for subprocess' pipes on Windows
@@ -382,7 +418,9 @@ else:
     ioloop = asyncio.get_event_loop()
 
 print(instr)
-a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
+
+
+a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts,max_pt))
 
 Temps=a[0].result()
 Ts=Temps[0]
@@ -429,23 +467,27 @@ print('Got connection from', addr)
 u_ub=[10.,20,4.,100.]
 u_lb=[6.,10.,1.,100.]
 
-V=7.5 #initial applied voltage
+V=6 #initial applied voltage
+#V=9.5 #initial applied voltage
 Tset=40 #initial setpoint
 
+######################################### set position parameters ####################
 t_el=0  #seconds sup. control timer
 tm_el=0
-t_move=4.*60.0 #seconds movement time
+t_move=7.0 #seconds movement time
+#t_move=30.0
 t_move_now=time.time()
-Delta_y=4.*1.5 #mm
+Delta_y=1. #mm
 #_elps=0 #seconds movement timer
 t_mel=0 #PI control timer
 I1=0
-Y_pos=0
+Y_pos=3.
 Dsep=4.0
+Y_dir=1
 
 ############ initialize save document ################################
-curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
-sv_fname = os.path.join(runopts.dir,"PI_Server_Out_{}".format(curtime))
+
+sv_fname = os.path.join(runopts.dir,"PI_Server_Out_{}".format(curtime1))
 save_fl=open(sv_fname,'a+')
 save_fl.write('time,Tset,Ts,Ts2,Ts3,P,Freq/1000,V,F,Q,D,x_pos,y_pos,t1\n')
 
@@ -466,7 +508,7 @@ while True:
             print('no data yet')
 
 
-        a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts))
+        a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts,max_pt))
 
         Temps=a[0].result()
         Ts=Temps[0]
@@ -512,7 +554,7 @@ while True:
         ########################## PI CONTROLS ################################
         Kp1=2.7
         Tp1=28.8
-        lamb1=500.0
+        lamb1=100.0
 #        lamb1=200.0
 
         Kc1=Tp1/(Kp1*lamb1)
@@ -531,27 +573,42 @@ while True:
             I1 = I1
             V=u_lb[0]
         elif round(u1,2)<=u_lb[0] and Tset>Ts:
-            I1 = I1 + e1*t_mel
-            V=u_lb[0]
+           I1 = I1 + e1*t_mel
+           V=u_lb[0]
         else:
             I1=I1+e1*t_mel
             V=round(u1,2)
 
-        print(V)
-        ########################### Movement ##############################
-        if (time.time()-t_move_now)>=t_move:
-            print('Moving')
-            Y_pos=Y_pos+Delta_y
-            t_move_now=time.time()
+#        print(V)
 
+        ########################### Movement ##############################
+       # if (time.time()-t_move_now)>=t_move: #for case I and II
+       #     print('Moving')
+       #     Y_pos=Y_pos+Delta_y
+       #     t_move_now=time.time()
+
+        if Y_pos==23: #for case I and II
+            Y_dir=-1
+        if Y_pos==3: #for case I and II
+            Y_dir=1
+
+        if Y_dir==1 and (time.time()-t_move_now)>=t_move: #for case I and II
+                print('Moving')
+                Y_pos=Y_pos+Delta_y
+                t_move_now=time.time()
+        elif Y_dir==-1 and (time.time()-t_move_now)>=t_move: #for case I and II
+                print('Moving')
+                Y_pos=Y_pos-Delta_y
+                t_move_now=time.time()
+
+###### DISTURBANCE
  #       if (time.time()-t_move_now)>=t_move:
  #           print('Moving')
  #           if Dsep>4.0:
  #              Dsep=4.0
  #           else:
  #               Dsep=6.0
-
-            t_move_now=time.time()
+ #           t_move_now=time.time()
 
         ######################### Send inputs #########################
         print("Sending inputs...")
@@ -559,15 +616,15 @@ while True:
         print("Inputs sent!")
 
         ##interpolate temperature to shift position
-        x_gen=range(25) #range of points controlled  [0-25mm]
-        x_now=NP.linspace(-13.0*2.89,12.0*2.89,25)+3+Y_pos #positions corresponding to current measurement
+        x_gen=range(26) #range of points controlled  [0-25mm]
+        x_now=NP.linspace(-13.0*2.89,12.0*2.89,26)-1+Y_pos #positions corresponding to current measurement
 
 
         Tshift=interp1d(x_now,Ts_lin,bounds_error=False,fill_value=min(Ts_lin))(x_gen)
         print(Ts_lin)
         CEM=CEM+tm_el*(9.74e-14/60.0)*np.exp(np.multiply(0.6964,Tshift))
-#        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},#{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
-        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*Ts_lin)
+        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
+
         print(msg)
 
         c.send(msg.encode())
