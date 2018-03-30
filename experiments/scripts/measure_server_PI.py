@@ -260,13 +260,13 @@ async def get_temp_a(runopts,a):
       with Lepton("/dev/spidev0.1") as l:
         data,_ = l.capture(retry_limit = 3)
       if l is not None:
-        mm=a ######################################## THIS NEEDS CALIBRATION #############
+        #mm=a ######################################## THIS NEEDS CALIBRATION #############
         ##print(data[10:80]);
         Ts = NP.amax(data[6:60,:,0]) / 100 - 273;
         #Ts=data[25,58,0]/100-273 #calibrated for the long jet
         #print(Ts_max, Ts)
         Tt = NP.amax(data[0:5,:,0]) / 100 - 273;
-        #mm= NP.where( data == NP.amax(data) )
+        mm= NP.where( data == NP.amax(data) )
         Ts_lin=data[int(mm[0]),:,0] /100 - 273
         yy=Ts_lin-Ts_lin[0]
         #gg=interp1d(yy,range(80))
@@ -404,6 +404,7 @@ async def asynchronous_measure(f,instr,runopts,max_pt):
 Ts_old=37
 Ts2_old=32
 Ts3_old=25
+Tslin_old=[37]*26
 
 Pold=2
 runopts = get_runopts()
@@ -436,6 +437,7 @@ v_rms=Ard_out[1]
 x_pos=Ard_out[3]
 y_pos=Ard_out[4]
 d_sep=Ard_out[5]
+T_emb=Ard_out[6]
 
 Osc_out=a[2].result()
 Vrms=Osc_out[0]
@@ -474,22 +476,26 @@ Tset=40 #initial setpoint
 ######################################### set position parameters ####################
 t_el=0  #seconds sup. control timer
 tm_el=0
-t_move=7.0 #seconds movement time
+Y_pos=4.
+t_move=30.0 #seconds movement time
 #t_move=30.0
 t_move_now=time.time()
-Delta_y=1. #mm
+Delta_y=2. #mm
 #_elps=0 #seconds movement timer
 t_mel=0 #PI control timer
 I1=0
-Y_pos=3.
 Dsep=4.0
 Y_dir=1
 
-############ initialize save document ################################
+############ initialize jet position
+send_inputs_v_only(f,6,Y_pos,Dsep)
+print('initializing jet position...')
+time.sleep(5.)
 
+############ initialize save document ################################
 sv_fname = os.path.join(runopts.dir,"PI_Server_Out_{}".format(curtime1))
 save_fl=open(sv_fname,'a+')
-save_fl.write('time,Tset,Ts,Ts2,Ts3,P,Freq/1000,V,F,Q,D,x_pos,y_pos,t1\n')
+save_fl.write('time,Tset,Ts,Ts2,Ts3,P,Freq/1000,V,F,Q,D,x_pos,y_pos,T_emb,t1\n')
 
 while True:
     try:
@@ -511,13 +517,17 @@ while True:
         a=ioloop.run_until_complete(asynchronous_measure(f,instr,runopts,max_pt))
 
         Temps=a[0].result()
-        Ts=Temps[0]
+        Ts_k=Temps[0]
         Ts2=Temps[1]
         Ts3=Temps[2]
-        Ts_lin=Temps[3]
+        Ts_lin_k=Temps[3]
         Tt=Temps[4]
         sig=Temps[5]
 
+        ## filter
+        Ts=Ts*0.3+Ts_k*0.7
+        Ts_lin=Ts_lin*0.3+Ts_lin_k*0.7
+        
         Ard_out=a[1].result()
         Is=Ard_out[0]
         v_rms=Ard_out[1]
@@ -617,7 +627,7 @@ while True:
 
         ##interpolate temperature to shift position
         x_gen=range(26) #range of points controlled  [0-25mm]
-        x_now=NP.linspace(-13.0*2.89,12.0*2.89,26)-1+Y_pos #positions corresponding to current measurement
+        x_now=NP.linspace(-13.0*2.89,12.0*2.89,26)-1.44+Y_pos #positions corresponding to current measurement
 
 
         Tshift=interp1d(x_now,Ts_lin,bounds_error=False,fill_value=min(Ts_lin))(x_gen)
@@ -630,7 +640,7 @@ while True:
         c.send(msg.encode())
         print('Measured outputs sent')
 
-        save_fl.write('{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(time.time(),Tset,Ts,Ts2,Ts3,P,*U_m,x_pos,y_pos,tm_el))
+        save_fl.write('{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(time.time(),Tset,Ts,Ts2,Ts3,P,*U_m,x_pos,y_pos,T_emb,tm_el))
         save_fl.flush()
 
         tm_el=time.time()-t0
