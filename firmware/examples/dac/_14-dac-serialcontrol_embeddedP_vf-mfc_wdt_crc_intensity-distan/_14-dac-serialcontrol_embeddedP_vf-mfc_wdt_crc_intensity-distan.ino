@@ -80,11 +80,12 @@ namespace data {
   float v_rms;
   float i_rms;
   float t_emb;
+  float p_rms;
 }
 
 namespace  PI_V{
-  float Kc = 5/(1.8*10);
-  float Tau_i = 5;
+  float Kc = 3/(0.56*20);
+  float Tau_i = 3;
   float I = 0;
   float err = 0 ;
 }
@@ -105,6 +106,7 @@ namespace setpoint {
   float x_pos = 0;
   float y_pos = 0;
   float duty = 0;
+  float pow_mod=0;
 }
 
 float v_calc=0;
@@ -280,12 +282,12 @@ void manual_input(String input) {
 
      case 'w' :
       // you sent w,###
-      if (input.substring(2).toFloat() > 4.5) {setpoint::power=4.5;}
+      if (input.substring(2).toFloat() > 12) {setpoint::power=12;}
       else if (input.substring(2).toFloat() < 0) {setpoint::power=0;}
       else { 
       setpoint::power = input.substring(2).toFloat();};
       #if DEBUG
-        Serial.println("Second flowrate set!");wa
+        Serial.println("Second flowrate set!");
       #endif
       actuate_inputs();
       break;
@@ -333,8 +335,11 @@ void manual_input(String input) {
       break;
       
       case 'p' :
+      if (input.substring(2).toFloat() < 10) {setpoint::duty=10;}
+      else if (input.substring(2).toFloat() > 100) {setpoint::duty=100;}
+      else { 
+      setpoint::duty = input.substring(2).toFloat();};
       // you sent p,###
-      setpoint::duty = input.substring(2).toFloat();
       #if DEBUG
         Serial.println("duty cycle set!");
       #endif
@@ -372,15 +377,15 @@ int move_to_pos_x(float delt, Adafruit_StepperMotor *motor) {
   //Serial.print('\n');
 
   if (delt < 0) {
-      motor->step(5, FORWARD, MICROSTEP); //// STEP SIZE calibrated 02/07/2018
+      motor->step(1, FORWARD, SINGLE); //// STEP SIZE calibrated 02/07/2018
       //motor->release();
-      delt=delt + 5;
+      delt=delt + 1;
       delay(2);
      return delt;
   } else if (delt > 0) {
-      motor->step(5, BACKWARD, MICROSTEP); //// STEP SIZE calibrated 02/07/2018
+      motor->step(1, BACKWARD,SINGLE); //// STEP SIZE calibrated 02/07/2018
       //motor->release();
-      delt=delt - 5;
+      delt=delt - 1;
       delay(2);
     return delt;
   } else if (delt == 0) {
@@ -394,15 +399,15 @@ int move_to_pos_y(float delt, Adafruit_StepperMotor *motor) {
   //Serial.print('\n');
 
   if (delt < 0) {
-      motor->step(5, FORWARD, MICROSTEP); //// STEP SIZE calibrated 02/07/2018
+      motor->step(1, FORWARD, SINGLE); //// STEP SIZE calibrated 02/07/2018
       //motor->release();
-      delt=delt + 5;
+      delt=delt + 1;
       delay(2);
      return delt;
   } else if (delt > 0) {
-      motor->step(5, BACKWARD, MICROSTEP); //// STEP SIZE calibrated 02/07/2018
+      motor->step(1, BACKWARD, SINGLE); //// STEP SIZE calibrated 02/07/2018
       //motor->release();
-      delt=delt - 5;
+      delt=delt - 1;
       delay(2);
     return delt;
   } else if (delt == 0) {
@@ -548,11 +553,17 @@ void loop()
   data::i_rms = (analogRead(PIN_I_RMS)*5.0/1024.0);
   data::dist = proxsensor.readRangeSingleMillimeters(); // read VL6180X distance
   data::t_emb = mlx_5deg.readObjectTempC();
+  data::p_rms=(data::v_rms*data::i_rms)*1.2+0.11;
   //addRead(data::dist); // add distance to averaging array
 
    // PI_V::err = 0.71*(setpoint::voltage/2)+0.02*(setpoint::duty-100) - data::v_rms*2; //// ERROR CALCULATION calibrated 10/05/2017
    //PI_V::err = 0.2*(setpoint::voltage/2)+0.008*setpoint::duty - data::v_rms;
-   PI_V::err = setpoint::power - data::v_rms*data::i_rms;
+   
+   if(setpoint::power*setpoint::duty/100. > 10){setpoint::pow_mod==10;}
+   else if (setpoint::power*setpoint::duty/100. < 1){setpoint::pow_mod==1;}
+   else { setpoint::pow_mod=setpoint::power*setpoint::duty/100;};
+   
+   PI_V::err = setpoint::pow_mod - data::p_rms;
    
   //PI_V::err = setpoint::voltage  - (6.33*data::v_rms + 1.57);
   //PI_V::err = 0.35*setpoint::voltage/2 - data::v_rms*2; //// ERROR CALCULATION calibrated 09/26/2017
@@ -593,7 +604,7 @@ void loop()
   mystring += ',';
   mystring += setpoint::power;
   mystring += ',';
-  mystring += data::v_rms*data::i_rms;
+  mystring += data::p_rms;
   
   // calculate the CRC8 of the string
   // first, convert string to array of chars (signed ints)

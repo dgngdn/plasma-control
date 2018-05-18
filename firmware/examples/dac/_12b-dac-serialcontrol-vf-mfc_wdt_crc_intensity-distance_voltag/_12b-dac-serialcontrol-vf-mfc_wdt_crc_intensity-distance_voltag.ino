@@ -80,6 +80,7 @@ namespace data {
   float v_rms;
   float i_rms;
   float t_emb;
+  float p_rms;
 }
 
 namespace  PI_V{
@@ -89,6 +90,13 @@ namespace  PI_V{
   float err = 0 ;
 }
 
+
+namespace time_var{
+  double ts=1.3;
+  double t_prev=0;
+  }
+
+  
 namespace setpoint {
   float voltage = 0;
   float vapp = 0;
@@ -101,6 +109,7 @@ namespace setpoint {
   float duty = 0;
 }
 
+float v_calc=0;
 namespace location {
   float delta = 0;
   float cur_loc = 400;
@@ -162,7 +171,7 @@ void setup_watchdog() {
   #if DEBUG
     Serial.println("enabling watchdog timer...");
   #endif
-  wdt_enable(WDTO_8S);
+  wdt_enable(WDTO_1S);
   
   #if DEBUG
     Serial.println("watchdog timer enabled!");
@@ -331,15 +340,15 @@ int move_to_pos(float delt, Adafruit_StepperMotor *motor) {
   //Serial.print('\n');
 
   if (delt < 0) {
-      motor->step(5, FORWARD, DOUBLE); //// STEP SIZE calibrated 12/08/2017
+      motor->step(1, BACKWARD, DOUBLE); //// STEP SIZE calibrated 12/08/2017
       motor->release();
-      delt=delt + 5;
+      delt=delt + 4;
       delay(2);
      return delt;
   } else if (delt > 0) {
-      motor->step(5, BACKWARD, DOUBLE); 
+      motor->step(1, FORWARD, DOUBLE); 
       motor->release();
-      delt=delt - 5;
+      delt=delt - 4;
       delay(2);
     return delt;
   } else if (delt == 0) {
@@ -367,6 +376,29 @@ int move_to_pos_x(float delt, Adafruit_StepperMotor *motor) {
     return delt;
   }
 }
+
+
+int move_to_pos_y(float delt, Adafruit_StepperMotor *motor) {
+  //Serial.print(aaReal.x);
+  //Serial.print('\n');
+
+  if (delt < 0) {
+      motor->step(5, FORWARD, MICROSTEP); //// STEP SIZE calibrated 02/07/2018
+      //motor->release();
+      delt=delt + 5;
+      delay(2);
+     return delt;
+  } else if (delt > 0) {
+      motor->step(5, BACKWARD, MICROSTEP); //// STEP SIZE calibrated 02/07/2018
+      //motor->release();
+      delt=delt - 5;
+      delay(2);
+    return delt;
+  } else if (delt == 0) {
+    return delt;
+  }
+}
+
 ////////////////////////////////////// ACTUATION ///////////////////////////////////////
 
 void actuate_inputs() {
@@ -384,8 +416,28 @@ void actuate_inputs() {
   // tuned for the control jet setup on 24V supply:
 
   ////////////// CONTROL FOR VGAP //////////////////////////////////////////////////
-  setpoint::vapp=setpoint::vapp + PI_V::Kc*(PI_V::err+PI_V::I/PI_V::Tau_i);  
+
+   v_calc=setpoint::vapp + PI_V::Kc*(PI_V::err+PI_V::I/PI_V::Tau_i);  
+//  PI_V::I = PI_V::I + PI_V::err*(time_var::ts-time_var::t_prev)*1e-3;
+//  setpoint::vapp=v_calc;
   
+  if(v_calc>=10 && PI_V::err>=0){
+    PI_V::I=PI_V::I;
+    setpoint::vapp=10;}  
+  else if (v_calc>=10 && PI_V::err<0){
+     PI_V::I = PI_V::I + PI_V::err*(time_var::ts-time_var::t_prev)*1e-3;
+    setpoint::vapp=10;}
+  else if(v_calc<=0 && PI_V::err<=0){
+    PI_V::I=PI_V::I;
+    setpoint::vapp=0.;}  
+  else if (v_calc<=0. && PI_V::err>0){
+     PI_V::I = PI_V::I + PI_V::err*(time_var::ts-time_var::t_prev)*1e-3;
+     setpoint::vapp=0.;}
+  else {
+    PI_V::I = PI_V::I + PI_V::err*(time_var::ts-time_var::t_prev)*1e-3;
+    setpoint::vapp=v_calc;
+    };
+    
   if (setpoint::vapp > 10) {setpoint::vapp=10;} /// SATURATION
   else if (setpoint::vapp < 0) {setpoint::vapp=0;};
 
@@ -394,11 +446,11 @@ void actuate_inputs() {
           mapfloat(setpoint::frequency,10,20,0.90*(DACSTEPS-1),0.085*(DACSTEPS-1)));
 
 //voltage control off
- //DAC_FXN.Set(mapfloat(setpoint::voltage,0,12,0.96*(DACSTEPS-1),0.46*(DACSTEPS-1)), 
- //      mapfloat(setpoint::frequency,10,20,0.90*(DACSTEPS-1),0.085*(DACSTEPS-1)));
+// DAC_FXN.Set(mapfloat(setpoint::voltage,0,12,0.96*(DACSTEPS-1),0.46*(DACSTEPS-1)), 
+//       mapfloat(setpoint::frequency,10,20,0.90*(DACSTEPS-1),0.085*(DACSTEPS-1)));
   
   // MFC DAC
-  DAC_MFC.Set(mapfloat(setpoint::flowrate,0,10,0,4095),mapfloat(setpoint::flowrate2,0,20,0,4095));
+ DAC_MFC.Set(mapfloat(setpoint::flowrate,0,10,0,4095),mapfloat(setpoint::flowrate2,0,20,0,4095));
 
  location::delta=move_to_pos(location::delta, dMotor);
  location::cur_loc = -location::delta + setpoint::dist;
@@ -407,11 +459,13 @@ void actuate_inputs() {
  location::cur_x = - location::delta_x + setpoint::x_pos;
 
  
- location::delta_y=move_to_pos_x(location::delta_y, yMotor);
+ location::delta_y=move_to_pos_y(location::delta_y, yMotor);
  location::cur_y = - location::delta_y + setpoint::y_pos;
  
    // set duty cycle
+//  analogWrite(PIN_PWM, mapfloat(setpoint::duty,0,100,0,255));
   analogWrite(PIN_PWM, mapfloat(setpoint::duty,0,100,0,255));
+
  
 }
 
@@ -473,7 +527,7 @@ void loop()
   }
 
   // get the timestamp
-  double ts = millis();
+  time_var::ts = millis();
   
   // read and save data from sensors
   data::dac_a = analogRead(PIN_DAC_A);
@@ -482,6 +536,7 @@ void loop()
   data::photo_b = analogRead(PIN_PHOTO_B);
   data::v_rms = ((analogRead(PIN_V_RMS)*5.0/1024.0) -0.0029)/0.97;
   data::i_rms = (analogRead(PIN_I_RMS)*5.0/1024.0);
+  data::p_rms=(data::v_rms*data::i_rms)*1.2+0.11;
   data::dist = proxsensor.readRangeSingleMillimeters(); // read VL6180X distance
   data::t_emb = mlx_5deg.readObjectTempC();
   //addRead(data::dist); // add distance to averaging array
@@ -492,11 +547,10 @@ void loop()
   //PI_V::err = setpoint::voltage  - (6.33*data::v_rms + 1.57);
   //PI_V::err = 0.35*setpoint::voltage/2 - data::v_rms*2; //// ERROR CALCULATION calibrated 09/26/2017
   actuate_inputs();
-  PI_V::I = PI_V::I + PI_V::err*(ts-t_prev)*1e-3;
   
   // build the string from the data
   String mystring = "";
-  mystring += ts;
+  mystring += time_var::ts;
   mystring += ',';
   mystring += setpoint::voltage;
   mystring += ',';
@@ -526,7 +580,9 @@ void loop()
   mystring += location::cur_y/10;
   mystring += ',';
   mystring += setpoint::flowrate2;
-
+  mystring += ',';
+  mystring += data::p_rms;
+  
   // calculate the CRC8 of the string
   // first, convert string to array of chars (signed ints)
   char mychars[mystring.length()+1]; 
@@ -548,7 +604,7 @@ void loop()
   //Serial.print(ts-t_prev);
   Serial.println();
   delay(LOOPDELAY);
-  t_prev=ts;
+  time_var::t_prev = time_var::ts;
   /*
   Serial.print(ts);
   Serial.print(",\t");
