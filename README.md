@@ -1,6 +1,7 @@
 # Advanced Process Control for Atmospheric Pressure Plasmas
 
-This repository has been forked and modified from [**Plasma Analysis and Control**](https://github.com/brandoncurtis/plasma-control) by Brandon Curtis
+The work in this repository is done in the University of Californa, Berkeley by [**Graves Lab**](http://www.graveslab.org) and [**Mesbah Lab**](http://www.mesbahlab.com/)
+
 
 **** This repository is being updated/ Changes in organization and clean-up is due ****
 
@@ -24,3 +25,7 @@ The Arduino firmware allows exchanging commands with the Arduni via serial monit
 
 ## Software 
 Detailed information about the software is under /experiments directory.Scripts are available for gathering detailed data from individual instruments under /experiments/scripts. The measure_server_PI and measure_server_OL scripts under /experiments/scripts allow for coordinated measurements from pheripherals and embedded systems simultaneously. These scripts also allow for interfacing with a websocket client to externally govern applied inputs or controller setpoints.
+
+
+
+*This repository has been forked and modified from [**Plasma Analysis and Control**](https://github.com/brandoncurtis/plasma-control) by Brandon Curtis*
