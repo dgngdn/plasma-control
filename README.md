@@ -3,4 +3,4 @@ The work in this repository is done in the University of Californa, Berkeley by 
 
 
 ## WARNING 
-**** This repository is has depriciated and is only used for developmenta/archiving pruposes. See the [APPJ_Control](www.github.com/dgngdn/APPJ_Control) repository for up-to-date information****
+**** This repository is has depriciated and is only used for developmenta/archiving pruposes. See the [APPJ_Control](https://github.com/dgngdn/APPJ_Control) repository for up-to-date information****
