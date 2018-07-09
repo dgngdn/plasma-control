@@ -1,7 +1,6 @@
-# Advanced Process Control for Atmospheric Pressure Plasmas
 
-Check out the original repository for [**Plasma Analysis and Control**](https://github.com/brandoncurtis/plasma-control) by Brandon Curtis
+The work in this repository is done in the University of Californa, Berkeley by [**Graves Lab**](http://www.graveslab.org) and [**Mesbah Lab**](http://www.mesbahlab.com/)
 
-See the jet moving!
 
-![Helium plasma jet](/results/moving_jet.gif)
+## WARNING 
+**** This repository is has depriciated and is only used for developmenta/archiving pruposes. See the [APPJ_Control](https://github.com/dgngdn/APPJ_Control) repository for up-to-date information****
