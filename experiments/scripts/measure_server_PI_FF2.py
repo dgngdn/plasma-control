@@ -584,6 +584,10 @@ Dc=100. #initial duty cycle
 F=20. #initial frequency
 Q=1.5 #initial flow
 q=1.5
+
+x0_ff=NP.array([[0],[0],[0]])
+u0_fb=V
+
 ############################### setpoints #####################
 Tset=40 #initial setpoint
 sigset=8.5 #initial setpoint
@@ -592,29 +596,30 @@ Pset=3.  #initial setpoint
 ######################################### set position parameters ####################
 t_el=0  #seconds sup. control timer
 tm_el=0
-Y_pos=8.
 move=0
 e1=0.
 e10=0.
 #t_move=7.5 #seconds movement time
 t_move=120.
 #t_move=30.0
-Delta_y=2. #mm
+Delta_y=11. #mm
 #_elps=0 #seconds movement timer
 t_mel=0 #PI control timer
 I1=0
 I2=0
 Dsep=4.0
-Y_dir=1
+Y_dir=-1
 
 t_dis=100.0
 t_step=60*5.
+
 ############ initialize jet position
+Y_pos=0.
 send_inputs_v_only(f,V,q,Y_pos,Dc,Dsep)
 print('initializing jet position...')
 time.sleep(5.)
 
-############ ini,  tialize save documents ################################
+############ initialize save document ################################
 
 
 
@@ -623,6 +628,7 @@ save_fl=open(sv_fname,'a+')
 save_fl.write('time,Tset,Ts,Ts2,Ts3,P,Imax,O777,O845,N391,He706,sum_int,V,F,Q,Dsep,x_pos,y_pos,T_emb,V,P_emb,Prms,D_c,Rdel,Is,q_o,sigma,Ip2p,tm_el\n')
 
 
+###################################### MAIN LOOP ###########################################33
 
 t_move_now=time.time() ##movement_start
 t_move_dis=time.time() ##disturbance_start
@@ -654,7 +660,7 @@ while True:
         Tt=Temps[4]
         sig=Temps[5]
 
-        ## filter
+        ## filter for temperature
         Ts=Ts*0.7+Ts_k*0.3
         Ts_lin=Ts_lin*0.7+Ts_lin_k*0.3
         
@@ -704,30 +710,62 @@ while True:
             Pold=P
 
 
-        ########################### MOVE TO AND STAY ##############################        
+        ############### FEED FORWARD ####################################
+        Zmeas=float(U_m[0]/Ip2p/4)
 
-        if (time.time()-t_move_now)>=t_move:
-           move=1
+        ff_a=NP.array([[1.6694,-0.6916,0.0],[1.0, 0.0, 0.0],[0.0, 1.0, 0.0]])
+        ff_b=NP.array([[4.0],[0.0],[0.0]])
+        ff_c=NP.array([[0.7087,-1.3655,0.6548]])
 
-        if Y_dir==1 and Y_pos<=44 and move==1: #for case I and II
+        xk_ff=ff_a.dot(x0_ff)+ff_b.dot(Y_pos/11.0)
+        yk_ff=ff_c.dot(xk_ff)
+
+        uk_ff=float(yk_ff[0])
+        x0_ff=xk_ff
+
+
+        ########################### MOVE BACK AND FORTH ##############################
+
+        if Y_pos==0: #for case I and II
+            Y_dir=-1
+        if Y_pos==-11: #for case I and II
+            Y_dir=1
+        if Y_dir==1 and (time.time()-t_move_now)>=t_move: #for case I and II
                 print('Moving')
                 Y_pos=Y_pos+Delta_y
-
-        elif Y_dir==-1 and Y_pos>=8 and move==1: #for case I and II
+                t_move_now=time.time()
+        elif Y_dir==-1 and (time.time()-t_move_now)>=t_move: #for case I and II
                 print('Moving')
                 Y_pos=Y_pos-Delta_y
+                t_move_now=time.time()
 
-        if round(Y_pos)<=8 and move==1:
-            Y_dir=1
-            move=0
-            t_move_now=time.time()
-        if round(Y_pos)==28 and move==1:
-            move=0
-            t_move_now=time.time()
-        if round(Y_pos)>=44 and move==1: #for case I and II
-            Y_dir=-1
-            move=0
-            t_move_now=time.time()
+        ########################### MOVE TO AND STAY ##############################        
+
+#        if (time.time()-t_move_now)>=t_move:
+#           move=1
+
+#        if Y_dir==1 and Y_pos<=44 and move==1: #for case I and II
+#                print('Moving')
+#                Y_pos=Y_pos+Delta_y
+
+#        elif Y_dir==-1 and Y_pos>=8 and move==1: #for case I and II
+#                print('Moving')
+#                Y_pos=Y_pos-Delta_y
+
+#        if round(Y_pos)<=8 and move==1:
+#            Y_dir=1
+#            move=0
+#            t_move_now=time.time()
+#        if round(Y_pos)==28 and move==1:
+#            move=0
+#            t_move_now=time.time()
+#        if round(Y_pos)>=44 and move==1: #for case I and II
+#            Y_dir=-1
+#            move=0
+#            t_move_now=time.time()
+
+
+
 
         ########################## PI CONTROLS V=>T ################################
         Kp1=2.7
@@ -816,7 +854,10 @@ while True:
 
         #Kp=0.043
         #Ki=0.00802
-        u1= V+Kp*e1+(-Kp+Ki*1.3)*e10
+        #u1= V+Kp*e1+(-Kp+Ki*1.3)*e10
+        uk_fb=u0_fb+Kp*e1+(-Kp+Ki*1.3)*e10
+
+        u1=uk_fb-uk_ff
 
         if round(u1,2)>=u_ub[0] and Tset>=Ts:
             I1 = I1
@@ -835,7 +876,7 @@ while True:
             V=round(u1,2)
          
         e10=e1
-
+        u0_fb=uk_fb
 #        print(V)
         ########################## PI CONTROLS Dcycle=>T ################################
 
@@ -951,20 +992,6 @@ while True:
     #        q=round(u2,2)
 
 
-        ########################### Movement ##############################
-
- #       if Y_pos==0: #for case I and II
- #           Y_dir=-1
- #       if Y_pos==-11: #for case I and II
- #           Y_dir=1
- #       if Y_dir==1 and (time.time()-t_move_now)>=t_move: #for case I and II
- #               print('Moving')
- #               Y_pos=Y_pos+Delta_y
- #               t_move_now=time.time()
- #       elif Y_dir==-1 and (time.time()-t_move_now)>=t_move: #for case I and II
- #               print('Moving')
- #               Y_pos=Y_pos-Delta_y
- #               t_move_now=time.time()
 
 ###### DISTURBANCE
 #        if (time.time()-t_move_dis)>=t_dis:
