@@ -34,12 +34,21 @@ import asyncio
 import usbtmc
 import socket
 from scipy.interpolate import interp1d
+import pickle
+import sklearn
+
 # Import core code.
 import core
 
 #import model_v1 as jet
 #import EKF_v1 as observer
 
+## load classifier
+f_class=open('kmeans2.pkl','rb')
+kmeans=pickle.load(f_class, encoding="latin1")
+
+f_reg=open('linear_Trot.pkl','rb')
+cl=pickle.load(f_reg, encoding="latin1")
 
 crc8 = crcmod.predefined.mkCrcFun('crc-8-maxim')
 
@@ -62,8 +71,8 @@ time.sleep(0.5)
 
 ## initialize spectrometer
 devices = sb.list_devices()
-#t_int=12000
-t_int=12000*8
+#t_int=12000s
+t_int=12000*6
 print("Available devices {}".format(devices))
 spec = sb.Spectrometer(devices[0])
 print("Using {}".format(devices[0]))
@@ -95,6 +104,7 @@ def get_runopts():
                             default=0.4)
   parser.add_argument("--save_therm", help="save thermography photos", action="store_true")
   parser.add_argument("--save_spec", help="save OES spectra", action="store_true")
+  parser.add_argument("--save_osc", help="save current waveform", action="store_true")
   parser.add_argument("--dir", type=str, default="data",help="relative path to save the data")
   parser.add_argument("--tag", type=str, default="",help="tag the saved files for easy recognition")
   parser.add_argument("--auto",help="run the code without connection to laptop", action="store_true")
@@ -108,6 +118,8 @@ curtime1 = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
 
 SAVEDIR_therm = os.path.join(os.getcwd(),runopts.dir,"{}_thermography-{}".format(curtime1,runopts.tag)) # path to the directory to save thermography files
 SAVEDIR_spec = os.path.join(os.getcwd(),runopts.dir,"{}_spectroscopy-{}".format(curtime1,runopts.tag)) # path to the directory to save thermography
+SAVEDIR_osc = os.path.join(os.getcwd(),runopts.dir,"{}_oscilloscope-{}".format(curtime1,runopts.tag)) # path to the directory to save oscilloscope wavefomr current
+
 
 if runopts.save_therm and not os.path.exists(SAVEDIR_therm):
   print("Creating directory: {}".format(SAVEDIR_therm))
@@ -116,6 +128,10 @@ if runopts.save_therm and not os.path.exists(SAVEDIR_therm):
 if runopts.save_spec and not os.path.exists(SAVEDIR_spec):
   print("Creating directory: {}".format(SAVEDIR_spec))
   os.makedirs(SAVEDIR_spec)
+
+if runopts.save_osc and not os.path.exists(SAVEDIR_osc):
+  print("Creating directory: {}".format(SAVEDIR_osc))
+  os.makedirs(SAVEDIR_osc)
 
 def save_data(SAVEDIR,data,fname):
   print("saving {}.csv".format(os.path.join(SAVEDIR,fname)))
@@ -209,6 +225,34 @@ def send_inputs_v_only(device,device2,Vn,Yn,Pn,Dn):
   time.sleep(0.0500)
   print("input values: V:{:.2f},Y:{:.2f}".format(Vn,Yn))
 
+def send_inputs_all(device,device2,Vn,Fn,Qn,Yn,Xn,Pn,Dn,On):
+  """
+  Sends input values to the microcontroller to actuate them
+  """
+  device.reset_input_buffer()
+  device2.reset_input_buffer()
+
+  subprocess.run('echo "" > /dev/arduino_m', shell=True)
+  time.sleep(0.0200)
+  subprocess.run('echo "w,{:.2f}" > /dev/arduino_m'.format(Vn), shell=True) #firmware v14
+  #subprocess.run('echo "v,{:.2f}" > /dev/arduino_m'.format(Vn), shell=True) #firmware v12
+  time.sleep(0.0200)
+  subprocess.run('echo "y,{:.2f}" > /dev/arduino_c'.format(Yn), shell=True)
+  time.sleep(0.0200)
+  subprocess.run('echo "x,{:.2f}" > /dev/arduino_c'.format(Xn), shell=True)
+  time.sleep(0.0200)
+  subprocess.run('echo "d,{:.2f}" > /dev/arduino_c'.format(Dn), shell=True)
+  time.sleep(0.0200)
+  subprocess.run('echo "p,{:.2f}" > /dev/arduino_m'.format(Pn), shell=True)
+  time.sleep(0.0200)
+  subprocess.run('echo "f,{:.2f}" > /dev/arduino_m'.format(Fn), shell=True)
+  time.sleep(0.0200)
+  subprocess.run('echo "q,{:.2f}" > /dev/arduino_m'.format(Qn), shell=True)
+  time.sleep(0.0200)
+  subprocess.run('echo "o,{:.2f}" > /dev/arduino_m'.format(On), shell=True)
+  time.sleep(0.0200)
+  print("input values: V:{:.2f},F:{:.2f},Q:{:.2f},Y:{:.2f}".format(Vn,Fn,Qn,Yn))
+
 def is_valid(line):
   """
   Verify that the line is complete and correct
@@ -294,6 +338,8 @@ async def get_temp_a(runopts,a):
           elif Ts > 150:
             print("Measured temperature is too high: {}".format(Ts))
 
+       # sig=2*2.88/(NP.sqrt(-NP.log((Ts2-Ts3)/(Ts-Ts3))))
+        sig=2.88/(NP.sqrt(-NP.log((Ts2-Ts3)/(Ts-Ts3))))
         if runopts.save_therm:
             curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
             fname = "{}".format(curtime)
@@ -323,7 +369,7 @@ async def get_temp_a(runopts,a):
       print("Lepton restart completed!\n\n")
 
   #print(Ts)
-  return [Ts, Ts2, Ts3, Ts_lin_out, Tt, data]
+  return [Ts, Ts2, Ts3, Ts_lin_out, Tt, sig, data]
 
 async def get_intensity_a(f,f2,runopts):
   """
@@ -341,6 +387,10 @@ async def get_intensity_a(f,f2,runopts):
     y_pos=0
     dsep=0
     T_emb=0
+    P_emb=0
+    Dc=0
+    I_emb=0
+    q_o=0
     while run1:
       try:
         f.reset_input_buffer()
@@ -357,6 +407,7 @@ async def get_intensity_a(f,f2,runopts):
           T_emb=float(line.split(',')[8])
           I_emb=float(line.split(',')[9])
           P_emb=float(line.split(',')[14])
+          q_o=float(line.split(',')[12])
         else:
           print("CRC8 failed. Invalid line!")
       #    run = False
@@ -394,68 +445,111 @@ async def get_intensity_a(f,f2,runopts):
         pass
 
   #print(Is)
-  return [Is,v_rms,U,x_pos,y_pos,dsep,T_emb,P_emb,Dc]
+  return [Is,v_rms,U,x_pos,y_pos,dsep,T_emb,P_emb,Dc,q_o]
 
 def gpio_setup():
   gpio.setmode(gpio.BOARD)
   gpio.setup(35, gpio.OUT)
   gpio.output(35, gpio.HIGH)
 
-async def get_oscilloscope_a(instr):
+async def get_oscilloscope_a(instr,runopts):
+    try:
+       # instr.write(":STOP")
+        # Votlage measurement
+       # instr.write(":MEAS:SOUR CHAN1")
+        #Vrms=float(instr.ask("MEAS:ITEM? PVRMS"))
 
-   # instr.write(":STOP")
-    # Votlage measurement
-    instr.write(":MEAS:SOUR CHAN1")
-    Vrms=float(instr.ask("MEAS:ITEM? PVRMS"))
+        instr.write(":MEAS:SOUR CHAN2")
+        #Irms=float(instr.ask("MEAS:ITEM? PVRMS"))
+        Imax=float(instr.ask("MEAS:VMAX?"))*1000 
+        Ip2p=float(instr.ask("MEAS:VPP?"))*1000 
 
-    instr.write(":MEAS:SOUR CHAN2")
-    Irms=float(instr.ask("MEAS:ITEM? PVRMS"))
-    Imax=float(instr.ask("MEAS:VMAX?"))*1000 
+        rdel=float(instr.ask("MEAS:ITEM? RDEL"))
 
-    Prms=Vrms*Irms
-    instr.write(":MEAS:SOUR MATH")
-    P=float(instr.ask("MEAS:VAVG?"))
+        if runopts.save_osc:
+            y_raw=instr.ask(':WAV:DATA?')
+            y_data=np.fromstring(y_raw[11:],dtype=float,sep=',')
 
-    if P>1e3:
-        print('WARNING: Measured power is too large')
-        time.sleep(0.8)
+            curtime = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S.%f")
+            fname = "{}".format(curtime)
+            save_data(SAVEDIR_osc,y_data,fname)
+
+       #Prms=Vrms*Irms
         instr.write(":MEAS:SOUR MATH")
         P=float(instr.ask("MEAS:VAVG?"))
+        Prms=float(instr.ask("MEAS:ITEM? PVRMS"))
 
-  
-   # instr.write(":RUN")
-   # time.sleep(0.4)
+        if P>1e3:
+            print('WARNING: Measured power is too large')
+            time.sleep(0.8)
+            instr.write(":MEAS:SOUR MATH")
+            P=float(instr.ask("MEAS:VAVG?"))
 
-    #print(P)
+        rdel=rdel*1.e6
+        fdel=0
+    except Exception as e:
+        print('oscilloscope error!')        
+        print(e)
+        P=0
+        Ip2p=0
+        Prms=0
+        rdel=0
+        Imax=0
+        pass
 
-    return [P,Imax,Prms]
+    return [P,Ip2p,Prms,rdel,Imax]
 
 async def get_spec_a(spec):
 
     wv=spec.wavelengths()
     sp_int=spec.intensities()
+
+    int_N2CB=sp_int[63:114]-NP.mean(sp_int[-10:-1])
+    int_n=int_N2CB/max(int_N2CB)
+
+    r=kmeans.predict(int_n.reshape(1,-1))
+    Tspec=cl.predict(int_n.reshape(1,-1))
+    print('Trot',Tspec[0][0]*550)
+    if r[0]==0:
+        print('Capacitative Substrate!')
+    elif r[0]==1:
+        print('Conductive Substrate!')
+    else:
+        print('Classifier Error')
     sp_int=sp_int-NP.mean(sp_int[-20:-1])
     sum_int=NP.sum(sp_int[20:])
+
+    ## for spec 1 - does not get OH spectrum
     O777=max(sp_int[1200:1250])
     O844=max(sp_int[1405:1455])
     N391=max(sp_int[126:146])
     He706=max(sp_int[990:1100])
+
+
+    ## for spec 2 - gets OH spectrum
+  #  O777=max(sp_int[1753:1777])
+  #  O844=max(sp_int[1988:2001])
+  #  N391=max(sp_int[563:572])
+  #  He706=max(sp_int[1521:1540])
+  #  OHR=max(sp_int[331:336])
+  #  OHP=max(sp_int[350:355])
     #print(O777)
-    return [O777,O844,N391,He706,sum_int]
+
+    return [O777,O844,N391,He706,sum_int,r,Tspec[0]]
 
 
 async def asynchronous_measure(f,instr,runopts,max_pt):
 
         tasks=[asyncio.ensure_future(get_temp_a(runopts,max_pt)),
               asyncio.ensure_future(get_intensity_a(f,f_move,runopts)),
-              asyncio.ensure_future(get_oscilloscope_a(instr)),
+              asyncio.ensure_future(get_oscilloscope_a(instr,runopts)),
               asyncio.ensure_future(get_spec_a(spec))]
 
         await asyncio.wait(tasks)
         return tasks
 
 
-###########################################################
+########################################################### SET UP FOR MAIN LOOP ###############################
 
 Ts_old=37
 Ts2_old=32
@@ -526,19 +620,29 @@ if not runopts.auto:
 u_ub=[10.,20,4.,100.]
 u_lb=[6.,10.,1.,100.]
 
+############################## INITAL INPUT PARAMETERS ####################################
 #V=6 #initial applied voltage
-V=5 #initial applied voltage
+V=1.5 #initial applied power
+
+
+O=0
 Tset=40 #initial setpoint
 Dc=100 #initial duty cycle
+F=20. #initial frequency
+Q=1.5 #initial flow
+
 
 ######################################### set position parameters ####################
 t_el=0  #seconds sup. control timer
 tm_el=0
-Y_pos=-11.
+Y_pos=0. #initial Y position
+X_pos=15. #initial X position
+
 #t_move=7.4 #seconds movement time
 #t_move=30.0
-t_move=120.
+
 Delta_y=11. #mm
+#Delta_y=5. #mm
 #_elps=0 #seconds movement timer
 t_mel=0 #PI control timer
 I1=0
@@ -547,16 +651,18 @@ Dsep=4.0
 Y_dir=-1
 
 t_dis=30. #for disturbance
-t_step=120 # for step tests
+t_step=3*60. # for step tests
 
+t_move=60*2.
+move=0
 ############ initialize jet position
-send_inputs_v_only(f,f_move,V,Y_pos,Dc,Dsep)
+send_inputs_all(f,f_move,V,F,Q,Y_pos,X_pos,Dc,Dsep,O)
 print('initializing jet position...')
 time.sleep(5.)
 ############ initialize save document ################################
 sv_fname = os.path.join(runopts.dir,"PI_Server_Out_{}-{}".format(curtime1,runopts.tag))
 save_fl=open(sv_fname,'a+')
-save_fl.write('time,Tset,Ts,Ts2,Ts3,P,Imax,O777,O845,N391,He706,sum_int,V,F,Q,D,x_pos,y_pos,T_emb,t1\n')
+save_fl.write('time,Tset,Ts,Ts2,Ts3,P,Imax,O777,O845,N391,He706,sum_int,V,F,Q,Dsep,x_pos,y_pos,T_emb,V,P_emb,Prms,D_c,Rdel,Is,q_o,sig,tm_el\n')
 
 t_move_now=time.time() ##movement_start
 t_move_dis=time.time() ##disturbance_start
@@ -586,12 +692,15 @@ while True:
         Ts3=Temps[2]
         Ts_lin_k=Temps[3]
         Tt=Temps[4]
-        sig=Temps[5]
+        sig_k=Temps[5]
 
         ## filter
         Ts=Ts*0.7+Ts_k*0.3
         Ts_lin=Ts_lin*0.7+Ts_lin_k*0.3
         
+        if sig<3: sig=sig_k
+        sig=0.4*sig+0.6*sig_k
+
         Ard_out=a[1].result()
         Is=Ard_out[0]
         v_rms=Ard_out[1]
@@ -602,18 +711,39 @@ while True:
         T_emb=Ard_out[6]
         P_emb=Ard_out[7]
         D_c=Ard_out[8]
-       
+        q_o=Ard_out[9]
+
         Osc_out=a[2].result()
         P=Osc_out[0]
-        Imax=Osc_out[1]
+        Ip2p=Osc_out[1]
         Prms=Osc_out[2]
+        Rdel=Osc_out[3]
+        Imax=Osc_out[4]
 
         Spec_out=a[3].result()
         O777=Spec_out[0]
         O845=Spec_out[1]
         N391=Spec_out[2]
         He706=Spec_out[3]
-        sum_int=Spec_out[-1]
+        sum_int=Spec_out[4]
+        r=Spec_out[5]
+        Tspec=Spec_out[6]
+
+        if Ip2p==0:
+            P=P_old
+            Ip2p=Ip2p_old
+            Prms=Prms_old
+            Rdel=Rdel_old
+            Imax=Imax_old
+        else:
+            P_old=P
+            Ip2p_old=Ip2p
+            Prms_old=Prms
+            Rdel_old=Rdel
+            Imax_old=Imax
+
+        Zmeas=float(U_m[0]/Ip2p/4)
+
 
         print("Temperature: {:.2f} Power: {:.2f}".format(Ts,P))
         print("Inputs:{:.2f},{:.2f},{:.2f},{:.2f}".format(*U_m))
@@ -634,50 +764,50 @@ while True:
         else:
             Pold=P
 
-        ########################## PI CONTROLS ################################
-        Kp1=2.7
-        Tp1=28.8
-        lamb1=20.0
-#        lamb1=200.0
+        ########################### MOVEMENT ##############################        
 
-        Kc1=Tp1/(Kp1*lamb1)
-        Ti1=Tp1
-        e1=Tset-Ts
-
-        u1= V+Kc1*(e1+I1/Ti1)
-
-      #  if round(u1,2)>=u_ub[0] and Tset>=Ts:
-      #      I1 = I1
-      #      V=u_ub[0]
-      #  elif round(u1,2)>=u_ub[0] and Tset<Ts:
-      #      I1 = I1 + e1*t_mel
-      #      V=u_ub[0]
-      #  elif round(u1,2)<=u_lb[0] and Tset<=Ts:
-      #      I1 = I1
-      #      V=u_lb[0]
-      #  elif round(u1,2)<=u_lb[0] and Tset>Ts:
-      #     I1 = I1 + e1*t_mel
-      #     V=u_lb[0]
-      #  else:
-      #      I1=I1+e1*t_mel
-      #      V=round(u1,2)
-
-#        print(V)
-
-        ########################### MOVEMENT ##############################
    #     if Y_pos==0: #for case I and II
    #         Y_dir=-1
    #     if Y_pos==-11: #for case I and II
    #         Y_dir=1
+
    #     if Y_dir==1 and (time.time()-t_move_now)>=t_move: #for case I and II
    #             print('Moving')
    #             Y_pos=Y_pos+Delta_y
    #             t_move_now=time.time()
-   #     elif Y_dir==-1 and (time.time()-t_move_now)>=t_move: #for case I and II
+
+   #    elif Y_dir==-1 and (time.time()-t_move_now)>=t_move: #for case I and II
    #             print('Moving')
    #             Y_pos=Y_pos-Delta_y
    #             t_move_now=time.time()
 
+        ########################### MOVE TO AND STAY ##############################        
+
+#        if (time.time()-t_move_now)>=t_move:
+#           move=1
+
+#        if Y_dir==1 and Y_pos<=44 and move==1: #for case I and II
+#                print('Moving')
+#                Y_pos=Y_pos+Delta_y
+
+#        elif Y_dir==-1 and Y_pos>=8 and move==1: #for case I and II
+#                print('Moving')
+#                Y_pos=Y_pos-Delta_y
+
+#        if round(Y_pos)<=8 and move==1:
+#            Y_dir=1
+#            move=0
+#            t_move_now=time.time()
+#        if round(Y_pos)==28 and move==1:
+#            move=0
+#            t_move_now=time.time()
+#        if round(Y_pos)>=44 and move==1: #for case I and II
+#            Y_dir=-1
+#            move=0
+#            t_move_now=time.time()
+
+   #     print(move)
+   #     print((time.time()-t_move_now)-t_move)
           ####################### DISTURBANCE ########################################
   #      if (time.time()-t_move_dis)>=t_dis:
   #          print('Moving')
@@ -693,13 +823,21 @@ while True:
    #         t_move_dis=time.time()
 
           ####################### STEP TEST ########################################
+        print('time remaining {:6.2f}'.format(t_step-time.time()+t_move_step))
+
         if (time.time()-t_move_step)>=t_step:
-          V=V-0.75
-          t_move_step=time.time()
+        #   #Dc=Dc-15
+             V=V+0.75
+       #      X_pos=X_pos+8
+         #    Q=Q+1
+         #   Dsep=Dsep+2.0
+        #    #O=O+0.5
+             t_move_step=time.time()
 
         ######################### Send inputs #########################
         print("Sending inputs...")
-        send_inputs_v_only(f,f_move,V,Y_pos,Dc,Dsep)
+       # send_inputs_v_only(f,f_move,V,Y_pos,Dc,Dsep).
+        send_inputs_all(f,f_move,V,F,Q,Y_pos,X_pos,Dc,Dsep,O)
         print("Inputs sent!")
 
         ##interpolate temperature to shift position
@@ -707,18 +845,18 @@ while True:
         x_now=NP.linspace(-13.0*2.89,12.0*2.89,26)-1+Y_pos #positions corresponding to current measurement
 
 
-        Tshift=interp1d(x_now,Ts_lin,bounds_error=False,fill_value=min(Ts_lin))(x_gen)
-        print(Ts_lin)
-        CEM=CEM+tm_el*(9.74e-14/60.0)*np.exp(np.multiply(0.6964,Tshift))
-        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(*CEM)
+        #Tshift=interp1d(x_now,Ts_lin,bounds_error=False,fill_value=min(Ts_lin))(x_gen)
+       # print(Ts_lin)
+       # CEM=CEM+tm_el*(9.74e-14/60.0)*np.exp(np.multiply(0.6964,Tshift))
+       # msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(*CEM)
 
-        print(msg)
+       # print(msg)
 
         if not runopts.auto:
             c.send(msg.encode())
             print('Measured outputs sent')
 
-        save_fl.write('{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(time.time(),Tset,Ts,Ts2,Ts3,P,Imax,O777,O845,N391,He706,sum_int,*U_m,x_pos,y_pos,T_emb,V,P_emb,Prms,D_c,tm_el))
+        save_fl.write('{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f}\n'.format(time.time(),Tset,Ts,Ts2,Ts3,P,Imax,O777,O845,N391,He706,sum_int,*U_m,x_pos,y_pos,T_emb,V,P_emb,Prms,D_c,Rdel ,Is,q_o,sig,Ip2p,r[0],Tspec[0]*550,tm_el))
         save_fl.flush()
 
         tm_el=time.time()-t0

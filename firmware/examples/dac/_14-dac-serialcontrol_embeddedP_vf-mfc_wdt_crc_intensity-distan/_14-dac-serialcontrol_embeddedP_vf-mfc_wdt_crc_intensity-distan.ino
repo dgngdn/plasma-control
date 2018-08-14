@@ -12,7 +12,7 @@ measurements from the VL6180X.
 The range readings are in units of mm. */
 
 // DEFINES
-#define DEBUG false
+#define DEBUG falsev
 
 // IMPORTS
 #include <Wire.h>
@@ -189,7 +189,6 @@ void get_serial() {
   #endif
 
   boolean stringComplete = false;  // whether the string is complete
-
   while (Serial.available() > 0) {
 
     // get the new byte:
@@ -275,7 +274,7 @@ void manual_input(String input) {
       else { 
       setpoint::flowrate2 = input.substring(2).toFloat();};
       #if DEBUG
-        Serial.println("Second flowrate set!");wa
+        Serial.println("Second flowrate set!");
       #endif
       actuate_inputs();
       break;
@@ -436,12 +435,12 @@ void actuate_inputs() {
 //  PI_V::I = PI_V::I + PI_V::err*(time_var::ts-time_var::t_prev)*1e-3;
 //  setpoint::vapp=v_calc;
   
-  if(v_calc>=10 && PI_V::err>=0){
+  if(v_calc>=11 && PI_V::err>=0){
     PI_V::I=PI_V::I;
-    setpoint::vapp=10;}  
-  else if (v_calc>=10 && PI_V::err<0){
+    setpoint::vapp=11;}  
+  else if (v_calc>=11 && PI_V::err<0){
      PI_V::I = PI_V::I + PI_V::err*(time_var::ts-time_var::t_prev)*1e-3;
-    setpoint::vapp=10;}
+    setpoint::vapp=11;}
   else if(v_calc<=0 && PI_V::err<=0){
     PI_V::I=PI_V::I;
     setpoint::vapp=0.;}  
@@ -455,7 +454,7 @@ void actuate_inputs() {
   
 
   
-  if (setpoint::vapp > 10) {setpoint::vapp=10;} /// SATURATION
+  if (setpoint::vapp > 11) {setpoint::vapp=11;} /// SATURATION
   else if (setpoint::vapp < 0) {setpoint::vapp=0;};
 
   // tuned for the control jet setup on 24V supply:
@@ -553,14 +552,14 @@ void loop()
   data::i_rms = (analogRead(PIN_I_RMS)*5.0/1024.0);
   data::dist = proxsensor.readRangeSingleMillimeters(); // read VL6180X distance
   data::t_emb = mlx_5deg.readObjectTempC();
-  data::p_rms=(data::v_rms*data::i_rms)*1.2+0.11;
+  data::p_rms=0.85*((data::v_rms*data::i_rms)*1.3+0.29)+0.093; //recalibrated after arcing 08/09/2018
   //addRead(data::dist); // add distance to averaging array
 
    // PI_V::err = 0.71*(setpoint::voltage/2)+0.02*(setpoint::duty-100) - data::v_rms*2; //// ERROR CALCULATION calibrated 10/05/2017
    //PI_V::err = 0.2*(setpoint::voltage/2)+0.008*setpoint::duty - data::v_rms;
    
    if(setpoint::power*setpoint::duty/100. > 10){setpoint::pow_mod==10;}
-   else if (setpoint::power*setpoint::duty/100. < 1){setpoint::pow_mod==1;}
+   else if (setpoint::power*setpoint::duty/100. < 0){setpoint::pow_mod==0;}
    else { setpoint::pow_mod=setpoint::power*setpoint::duty/100;};
    
    PI_V::err = setpoint::pow_mod - data::p_rms;

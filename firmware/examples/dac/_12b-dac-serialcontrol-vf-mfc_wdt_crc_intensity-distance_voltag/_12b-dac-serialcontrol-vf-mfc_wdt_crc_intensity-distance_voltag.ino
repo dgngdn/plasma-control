@@ -536,7 +536,7 @@ void loop()
   data::photo_b = analogRead(PIN_PHOTO_B);
   data::v_rms = ((analogRead(PIN_V_RMS)*5.0/1024.0) -0.0029)/0.97;
   data::i_rms = (analogRead(PIN_I_RMS)*5.0/1024.0);
-  data::p_rms=(data::v_rms*data::i_rms)*1.2+0.11;
+  data::p_rms=(data::v_rms*data::i_rms)*1.3+0.29;
   data::dist = proxsensor.readRangeSingleMillimeters(); // read VL6180X distance
   data::t_emb = mlx_5deg.readObjectTempC();
   //addRead(data::dist); // add distance to averaging array
@@ -580,6 +580,12 @@ void loop()
   mystring += location::cur_y/10;
   mystring += ',';
   mystring += setpoint::flowrate2;
+  mystring += ',';
+  mystring += 0;
+  mystring += ',';
+  mystring += data::i_rms;
+  mystring += ',';
+  mystring += data::v_rms;
   mystring += ',';
   mystring += data::p_rms;
   
