@@ -666,6 +666,7 @@ Tset=40. #initial setpoint
 Tset_list=[40,41,40,38,43,42,45,41,40,43];
 #Tset_list=[40,41.5,43,44.5]
 Q_list=[1.5,1.0,2.0,1.5,1.6,1.8,1.2,2.2,1.5,2];
+Dsep_list=[4.0, 10.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0 ,4.0, 6.0]
 
 ind_i=1
 
@@ -687,12 +688,9 @@ t_mel=0 #PI control timer
 I1=0
 I2=0
 Dsep=4.0
-Dsep_list=[4.0, 6.2, 3.0, 5.4, 8.0, 6.8, 7.0, 4.4, 2.4, 3.0 ]
-Dsep_list=[4.0, 10.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0, 4.0, 6.0 ,4.0, 6.0]
 Y_dir=-1
 
 t_dis=100.0
-t_step=60.*2.
 t_step=80.
 t_move=60.*2.
 int_flag=0
@@ -769,27 +767,18 @@ while True:
           ####################### STEP TEST ########################################
         print('time remaining {:6.2f}'.format(t_step-time.time()+t_move_step))
 
-      #  if (time.time()-t_move_step)>=t_step:
-          #Tset=Tset+1.5
-      #    Tset=Tset_list[ind_i]
-       #   Q=Q_list[ind_i]
-      #    ind_i=ind_i+1
-
-      #        t_move_step=time.time()
-
-################################# Disturbance #################################
         if (time.time()-t_move_step)>=t_step:
           #Tset=Tset+1.5
-  #        Tset=Tset_list[ind_i]
-  #        Q=Q_list[ind_i]
-  #        Dsep=Dsep_list[ind_i] 
+       #   Tset=Tset_list[ind_i]
+       #   Q=Q_list[ind_i]
+          Dsep=Dsep_list[ind_i]
           ind_i=ind_i+1
 
           t_move_step=time.time()
 
           ####################### RECIEVE ########################################
         try:
- 
+
             data=c.recv(512).decode()
             data_str=data.split(',')
             data_flt=[float(i) for i in data_str]
@@ -797,8 +786,9 @@ while True:
             #Vover=data_flt[0]
             X_pos=data_flt[1]
             Y_pos=data_flt[2]
-            int_flag=data_flt[3]
-            t_el=data_flt[4]
+            Qset=data_flt[3]
+            int_flag=data_flt[4]
+            t_el=data_flt[5]
 
             print('Optimal Reference Recieved!')
             print('Tref: {:6.2f}, t_el:{:6.2f}'.format(Tset,t_el))
@@ -1271,8 +1261,9 @@ while True:
         #send_inputs_v_only(f,f_move,V,Y_pos,Dc,Dsep)
         #if int_flag==1:
         #    V=Vover
+        Q=Qset
         send_inputs_all(f,f_move,V,F,Q,Y_pos,X_pos,Dc,Dsep,O)
-
+        print('int_flag:', int_flag)
         print("Inputs sent!")
         
 
@@ -1283,9 +1274,9 @@ while True:
 #        msg='{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f},{:6.2f} \n'.format(*CEM)
         
         msg_form='{:6.2f},'
-        msg_str=msg_form*(1+len(Tshift2D.flatten()))
+        msg_str=msg_form*(2+len(Tshift2D.flatten()))
         msg_str=msg_str[:-1]+'\n'
-        msg=msg_str.format(*CEM2D .flatten(),Ts)
+        msg=msg_str.format(*CEM2D .flatten(),Ts,sig2)
 
         
         msg2='{:6.2f}\n'.format(Ts)
